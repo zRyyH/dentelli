@@ -1,0 +1,18 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount source for hot reload
+      - .:/app
+      # Preserve container's node_modules (don't override with host)
+      - /app/node_modules
+      # Preserve Next.js build cache
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true   # needed on Windows/WSL for file watch
+    restart: unless-stopped
