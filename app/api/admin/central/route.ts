@@ -11,12 +11,23 @@ export const POST = withWebhook(async (request: NextRequest) => {
   const body = await request.json();
   const {
     tipo, // "CREDITO" | "DEBITO"
-    embaixadorId, missaoId, pontos, observacao,
+    embaixadorId, missaoId, indicacaoId, pontos, observacao,
     pedidoId, custoDebito, observacaoDebito,
     saldoPontos,
   } = body;
 
   if (tipo === "CREDITO") {
+    // Buscar missão para verificar categoria
+    if (missaoId) {
+      const missaoRes = await pbFetch(`/api/collections/missao/records/${missaoId}`);
+      if (missaoRes.ok) {
+        const missao = await missaoRes.json();
+        if (missao.categoria === "INDICACAO" && !indicacaoId) {
+          return apiError("Indicação obrigatória para missões da categoria INDICACAO", 400);
+        }
+      }
+    }
+
     const res = await pbFetch("/api/collections/transacao/records", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -27,6 +38,7 @@ export const POST = withWebhook(async (request: NextRequest) => {
         valor: pontos,
         saldo: pontos,
         missao: missaoId,
+        indicacao: indicacaoId || "",
         observacao,
       }),
     });

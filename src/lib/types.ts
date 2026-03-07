@@ -99,6 +99,17 @@ export interface Missao {
   missao: string;
   criterio: string;
   pontos: number;
+  automatico: boolean;
+  categoria: "PROGRESSAO" | "PROVA_SOCIAL" | "INDICACAO" | "FEEDBACK" | "PESSOAL";
+}
+
+export interface Indicacao {
+  id: string;
+  nome: string;
+  telefone: string;
+  relacao: string;
+  usuario_embaixador: string;
+  usuario_coletor: string;
 }
 
 export interface Relacao {

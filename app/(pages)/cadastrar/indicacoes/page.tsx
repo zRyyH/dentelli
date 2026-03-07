@@ -35,7 +35,6 @@ interface BatchIndicacao {
   telefone: string;
   relacaoId: string;
   relacaoNome: string;
-  valido: string;
   status?: "pending" | "success" | "error";
 }
 
@@ -48,7 +47,6 @@ export default function IndicacoesPage() {
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [relacaoId, setRelacaoId] = useState("");
-  const [valido, setValido] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
 
@@ -66,12 +64,11 @@ export default function IndicacoesPage() {
   const tipo = (embaixadorSelecionado as any)?.tipo || "";
   const prontuario = (embaixadorSelecionado as any)?.prontuario || "";
 
-  const resetIndicacao = () => { setNome(""); setTelefone(""); setRelacaoId(""); setValido(""); };
+  const resetIndicacao = () => { setNome(""); setTelefone(""); setRelacaoId(""); };
 
   const buildBody = (item: BatchIndicacao) => ({
     nome: item.nome, telefone: item.telefone, relacao: item.relacaoId,
     usuario_embaixador: item.embaixadorId, usuario_coletor: item.coletorId,
-    valido: item.valido === "sim",
   });
 
   const validate = () => {
@@ -85,7 +82,7 @@ export default function IndicacoesPage() {
     setSubmitting(true);
     try {
       await apiPost("/api/admin/indicacao", {
-        nome, telefone, relacaoId, embaixadorId, coletorId, valido,
+        nome, telefone, relacaoId, embaixadorId, coletorId,
         coletor: coletores.find((c) => c.id === coletorId) ?? { id: coletorId },
         embaixador: embaixadores.find((e) => e.id === embaixadorId) ?? { id: embaixadorId },
         relacao: relacoes.find((r) => r.id === relacaoId) ?? { id: relacaoId },
@@ -108,7 +105,6 @@ export default function IndicacoesPage() {
       embaixadorId, embaixadorNome: embaixadores.find((e) => e.id === embaixadorId)?.nome || "",
       nome, telefone,
       relacaoId, relacaoNome: relacoes.find((r) => r.id === relacaoId)?.nome || "",
-      valido,
     });
     resetIndicacao();
     toast.success("Indicação adicionada ao lote");
@@ -120,7 +116,6 @@ export default function IndicacoesPage() {
         await apiPost("/api/admin/indicacao", {
           nome: item.nome, telefone: item.telefone,
           relacaoId: item.relacaoId, embaixadorId: item.embaixadorId, coletorId: item.coletorId,
-          valido: item.valido,
           coletor: { id: item.coletorId, nome: item.coletorNome },
           embaixador: { id: item.embaixadorId, nome: item.embaixadorNome },
           relacao: { id: item.relacaoId, nome: item.relacaoNome },
@@ -183,7 +178,7 @@ export default function IndicacoesPage() {
 
       <hr className="border-border" />
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className={lbl}>Nome</label>
           <Input value={nome} onChange={(e) => setNome(e.target.value)} className={inp} />
@@ -197,16 +192,6 @@ export default function IndicacoesPage() {
           <Select value={relacaoId} onValueChange={setRelacaoId} items={Object.fromEntries(relacoes.map((r) => [r.id, r.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma relação" /></SelectTrigger>
             <SelectContent>{relacoes.map((r) => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className={lbl}>Válido</label>
-          <Select value={valido} onValueChange={setValido} items={{ sim: "Sim", nao: "Não" }}>
-            <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sim">Sim</SelectItem>
-              <SelectItem value="nao">Não</SelectItem>
-            </SelectContent>
           </Select>
         </div>
       </div>

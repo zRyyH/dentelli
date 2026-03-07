@@ -71,7 +71,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       const cached = localStorage.getItem(LS_KEY);
       if (cached) {
         const { colors: c, images: i } = JSON.parse(cached);
-        if (c && i) { setColors(c); setImages(i); applyColors(c); }
+        if (c && i) { setColors(c); setImages(i); applyColors(c); setReady(true); }
       }
     } catch {}
   }, []);
@@ -100,7 +100,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { load(); }, [load]);
 
-  return <Ctx.Provider value={{ colors, images, ready }}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={{ colors, images, ready }}>
+      {!ready ? (
+        <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff", zIndex: 9999 }}>
+          <div style={{ width: 40, height: 40, border: "4px solid #e5e7eb", borderTopColor: "#6b7280", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      ) : children}
+    </Ctx.Provider>
+  );
 }
 
 export const useTheme = () => useContext(Ctx);

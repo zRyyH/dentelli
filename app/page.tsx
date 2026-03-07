@@ -93,11 +93,6 @@ export default function LoginPage() {
       <div className="flex flex-1 flex-col items-center justify-center bg-white px-6 md:px-14 relative">
         <div className="absolute top-0 right-0 w-48 h-48 pointer-events-none"
           style={{ background: "radial-gradient(circle at top right, hsl(var(--primary)/0.06), transparent 70%)" }} />
-        {images.icone && (
-          <div className="lg:hidden mb-10" style={anim(0)}>
-            <img src={images.icone} alt="Logo" className="h-16 object-contain" />
-          </div>
-        )}
         <div className="relative z-10 w-full max-w-[360px]">
           <div className="mb-10" style={anim(60)}>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-2">Portal do Membro</p>

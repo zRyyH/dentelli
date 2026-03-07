@@ -106,8 +106,8 @@ export default function CheckoutPage() {
             </div>
             <p className="text-base font-semibold text-foreground">Seu carrinho está vazio</p>
             <p className="text-sm text-muted-foreground mt-1 mb-6">Adicione produtos para continuar</p>
-            <Button nativeButton={false} render={<Link href="/rewards" />} variant="outline" className="rounded-full px-7">
-              Ver Recompensas
+            <Button asChild variant="outline" className="rounded-full px-7">
+              <Link href="/rewards">Ver Recompensas</Link>
             </Button>
           </div>
         ) : (

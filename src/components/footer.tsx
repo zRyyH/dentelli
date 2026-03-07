@@ -51,15 +51,15 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t border-border bg-primary py-12">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 md:grid-cols-3 text-center md:text-left">
+      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 md:grid-cols-3 md:gap-16 text-center justify-items-center">
         <div>
           <h4 className="mb-4 text-lg font-bold text-primary-foreground">Atendimento Ao Cliente</h4>
           <p className="mb-3 text-sm font-bold text-primary-foreground/90">Horário de Atendimento</p>
           <div className="space-y-2 text-sm text-primary-foreground/70">
-            <p className="flex items-center gap-2 justify-center md:justify-start">
+            <p className="flex items-center gap-2 justify-center">
               <Clock className="h-4 w-4 shrink-0" /> Segunda a sexta: 8:00 às 18:00h
             </p>
-            <p className="flex items-center gap-2 justify-center md:justify-start">
+            <p className="flex items-center gap-2 justify-center">
               <Phone className="h-4 w-4 shrink-0" />
               {tema?.whatsapp ? (
                 <a href={`https://wa.me/${tema.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:text-primary-foreground transition-colors">
@@ -67,7 +67,7 @@ export function SiteFooter() {
                 </a>
               ) : "WhatsApp"}
             </p>
-            <p className="flex items-center gap-2 justify-center md:justify-start">
+            <p className="flex items-center gap-2 justify-center">
               <Mail className="h-4 w-4 shrink-0" />
               {tema?.email ? (
                 <a href={`mailto:${tema.email}`} className="hover:text-primary-foreground transition-colors">
@@ -99,7 +99,7 @@ export function SiteFooter() {
           {socials.length > 0 && (
             <>
               <p className="mt-4 text-sm font-bold text-primary-foreground">Onde nos encontrar:</p>
-              <div className="mt-2 flex gap-3 justify-center md:justify-start">
+              <div className="mt-2 flex gap-3 justify-center">
                 {socials.map(({ icon: Icon, label, href }) => (
                   <a key={label} href={href} target="_blank" rel="noreferrer" aria-label={label}
                     className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-foreground text-primary hover:bg-primary-foreground/80 transition-colors">

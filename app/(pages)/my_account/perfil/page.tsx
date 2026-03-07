@@ -12,10 +12,8 @@ import { toast } from "sonner";
 export default function PerfilPage() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [showOld, setShowOld] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -46,8 +44,6 @@ export default function PerfilPage() {
 
     if (newPassword) {
       if (newPassword !== confirmPassword) { toast.error("As senhas não coincidem"); return; }
-      if (!oldPassword) { toast.error("Informe a senha atual"); return; }
-      body.oldPassword = oldPassword;
       body.password = newPassword;
       body.passwordConfirm = confirmPassword;
     }
@@ -66,7 +62,7 @@ export default function PerfilPage() {
         throw new Error((err as any)?.error || "Erro ao salvar");
       }
       toast.success("Alterações salvas.");
-      setOldPassword(""); setNewPassword(""); setConfirmPassword("");
+      setNewPassword(""); setConfirmPassword("");
       const updated = await res.json();
       if (updated) setUserData(updated);
     } catch (e: any) {
@@ -96,7 +92,6 @@ export default function PerfilPage() {
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-6">Alterar senha</p>
           <div className="space-y-6">
             {[
-              { label: "Senha atual", value: oldPassword, onChange: setOldPassword, show: showOld, onToggle: () => setShowOld(!showOld) },
               { label: "Nova senha", value: newPassword, onChange: setNewPassword, show: showNew, onToggle: () => setShowNew(!showNew) },
               { label: "Confirmar nova senha", value: confirmPassword, onChange: setConfirmPassword, show: showConfirm, onToggle: () => setShowConfirm(!showConfirm) },
             ].map(({ label, value, onChange, show, onToggle }) => (

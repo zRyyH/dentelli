@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,7 +13,7 @@ import { BatchQueue } from "@/components/batch-queue";
 import { BatchToggle } from "@/components/batch-toggle";
 import {
   useUnidades, useEmbaixadores, useMissoes,
-  usePedidosPendentes, useSaldoEmbaixador,
+  usePedidosPendentes, useSaldoEmbaixador, useIndicacoes,
 } from "@/hooks/use-admin-data";
 import { useBatch } from "@/hooks/use-batch";
 import { toast } from "sonner";
@@ -39,6 +39,7 @@ interface BatchCredito {
   embaixadorNome: string;
   missaoId: string;
   missaoNome: string;
+  indicacaoId: string;
   pontos: number;
   observacao: string;
   status?: "pending" | "success" | "error";
@@ -55,6 +56,8 @@ export default function CentralPage() {
   const [unidadeId, setUnidadeId] = useState("");
   const [embaixadorId, setEmbaixadorId] = useState("");
   const [missaoId, setMissaoId] = useState("");
+  const [indicacaoId, setIndicacaoId] = useState("");
+  const [indicacaoSearch, setIndicacaoSearch] = useState("");
   const [observacao, setObservacao] = useState("");
   const [pontos, setPontos] = useState(0);
   const [pedidoId, setPedidoId] = useState("");
@@ -66,16 +69,33 @@ export default function CentralPage() {
   const batch = useBatch<BatchCredito>();
   const { data: unidades = [] } = useUnidades();
   const { data: embaixadores = [] } = useEmbaixadores(unidadeId);
-  const { data: missoes = [] } = useMissoes();
+  const { data: todasMissoes = [] } = useMissoes();
+  const { data: todasIndicacoes = [] } = useIndicacoes();
   const { data: pedidos = [] } = usePedidosPendentes(embaixadorId);
   const { data: saldoData } = useSaldoEmbaixador(embaixadorId);
+
+  const missoes = useMemo(() => todasMissoes.filter((m) => !m.automatico), [todasMissoes]);
+  const missaoSelecionada = useMemo(() => missoes.find((m) => m.id === missaoId), [missaoId, missoes]);
+  const missaoCategoria = missaoSelecionada?.categoria ?? "";
+
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const indicacoesFiltradas = useMemo(() => {
+    const q = normalize(indicacaoSearch);
+    if (!q) return [];
+    return todasIndicacoes.filter(
+      (i) => normalize(i.nome).includes(q) || i.telefone.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [todasIndicacoes, indicacaoSearch]);
 
   const saldoPontos = (saldoData?.pendente ?? 0) + (saldoData?.saldo ?? 0);
   const custoDebito = parseFloat(pontosItem) || 0;
   const saldoApos = saldoPontos - custoDebito;
 
   const resetTransacao = () => {
-    setMissaoId(""); setObservacao(""); setPontos(0);
+    setMissaoId(""); setIndicacaoId(""); setIndicacaoSearch(""); setObservacao(""); setPontos(0);
     setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
   };
 
@@ -86,6 +106,7 @@ export default function CentralPage() {
   const handleMissaoChange = (id: string) => {
     const missao = missoes.find((m) => m.id === id);
     setMissaoId(id);
+    setIndicacaoId(""); setIndicacaoSearch("");
     setPontos(missao?.pontos || 0);
   };
 
@@ -101,6 +122,7 @@ export default function CentralPage() {
   const handleSubmit = async () => {
     if (!unidadeId || !embaixadorId) { toast.error("Preencha unidade e embaixador"); return; }
     if (tipoTransacao === "CREDITO" && !missaoId) { toast.error("Selecione uma missão"); return; }
+    if (tipoTransacao === "CREDITO" && missaoCategoria === "INDICACAO" && !indicacaoId) { toast.error("Selecione uma indicação para esta missão"); return; }
     if (tipoTransacao === "DEBITO") {
       if (!pedidoId) { toast.error("Selecione um pedido"); return; }
       if (saldoApos < 0) { toast.error("Saldo insuficiente para este resgate"); return; }
@@ -110,7 +132,7 @@ export default function CentralPage() {
     try {
       await apiPost("/api/admin/central", {
         tipo: tipoTransacao,
-        embaixadorId, missaoId, pontos, observacao,
+        embaixadorId, missaoId, indicacaoId, pontos, observacao,
         pedidoId, custoDebito, observacaoDebito,
         saldoPontos,
         embaixador: embaixadores.find((e) => e.id === embaixadorId) ?? { id: embaixadorId },
@@ -136,13 +158,15 @@ export default function CentralPage() {
   const addToBatch = () => {
     if (!unidadeId || !embaixadorId) { toast.error("Preencha unidade e embaixador"); return; }
     if (!missaoId) { toast.error("Selecione uma missão"); return; }
+    if (missaoCategoria === "INDICACAO" && !indicacaoId) { toast.error("Selecione uma indicação para esta missão"); return; }
     batch.add({
       unidadeId, unidadeNome: unidades.find((u) => u.id === unidadeId)?.nome || "",
       embaixadorId, embaixadorNome: embaixadores.find((e) => e.id === embaixadorId)?.nome || "",
       missaoId, missaoNome: missoes.find((m) => m.id === missaoId)?.missao || "",
+      indicacaoId,
       pontos, observacao,
     });
-    setMissaoId(""); setObservacao(""); setPontos(0);
+    setMissaoId(""); setIndicacaoId(""); setIndicacaoSearch(""); setObservacao(""); setPontos(0);
     toast.success("Adicionado ao lote");
   };
 
@@ -153,6 +177,7 @@ export default function CentralPage() {
           tipo: "CREDITO",
           embaixadorId: item.embaixadorId,
           missaoId: item.missaoId,
+          indicacaoId: item.indicacaoId,
           pontos: item.pontos,
           observacao: item.observacao,
           saldoPontos: 0,
@@ -221,22 +246,54 @@ export default function CentralPage() {
       <hr className="border-border" />
 
       {tipoTransacao === "CREDITO" ? (
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
-          <div>
-            <label className={lbl}>Missão</label>
-            <Select value={missaoId} onValueChange={handleMissaoChange} items={Object.fromEntries(missoes.map((m) => [m.id, m.missao]))}>
-              <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma opção" /></SelectTrigger>
-              <SelectContent>{missoes.map((m) => <SelectItem key={m.id} value={m.id}>{m.missao}</SelectItem>)}</SelectContent>
-            </Select>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
+            <div>
+              <label className={lbl}>Missão</label>
+              <Select value={missaoId} onValueChange={handleMissaoChange} items={Object.fromEntries(missoes.map((m) => [m.id, m.missao]))}>
+                <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma opção" /></SelectTrigger>
+                <SelectContent>{missoes.map((m) => <SelectItem key={m.id} value={m.id}>{m.missao}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className={lbl}>Observação</label>
+              <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-card text-card-foreground min-h-[36px]" />
+            </div>
+            <div className="w-24">
+              <label className={lbl}>Pontos</label>
+              <Input value={pontos || ""} readOnly className={`${inp} cursor-not-allowed`} />
+            </div>
           </div>
-          <div>
-            <label className={lbl}>Observação</label>
-            <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-card text-card-foreground min-h-[36px]" />
-          </div>
-          <div className="w-24">
-            <label className={lbl}>Pontos</label>
-            <Input value={pontos || ""} readOnly className={`${inp} cursor-not-allowed`} />
-          </div>
+          {missaoCategoria === "INDICACAO" && (
+            <div className="space-y-2">
+              <label className={lbl}>Indicação</label>
+              <Input
+                value={indicacaoSearch}
+                onChange={(e) => { setIndicacaoSearch(e.target.value); setIndicacaoId(""); }}
+                placeholder="Buscar por nome ou telefone..."
+                className={inp}
+              />
+              {indicacaoSearch.length > 0 && !indicacaoId && (
+                <div className="border border-border rounded-md bg-card overflow-auto max-h-48">
+                  {indicacoesFiltradas.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3">Nenhuma indicação encontrada.</p>
+                  ) : (
+                    indicacoesFiltradas.map((ind) => (
+                      <button
+                        key={ind.id}
+                        type="button"
+                        onClick={() => { setIndicacaoId(ind.id); setIndicacaoSearch(`${ind.nome} — ${ind.telefone}`); }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${indicacaoId === ind.id ? "bg-primary/10 font-semibold" : ""}`}
+                      >
+                        <span className="font-medium">{ind.nome}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">{ind.telefone}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

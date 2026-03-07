@@ -104,8 +104,8 @@ export default function SupportPage() {
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-6xl gap-16 px-6 py-12">
-        {/* Sidebar */}
+      <div className="mx-auto flex max-w-6xl gap-16 px-4 md:px-6 py-8 md:py-12">
+        {/* Sidebar — desktop only */}
         <aside className="w-48 shrink-0 hidden md:block">
           <nav className="sticky top-24 space-y-0.5">
             {SIDEBAR_ITEMS.map((item) => (
@@ -121,22 +121,21 @@ export default function SupportPage() {
           </nav>
         </aside>
 
-        {/* Mobile tabs */}
-        <div className="md:hidden w-full">
-          <div className="flex gap-2 overflow-x-auto pb-4 mb-6">
-            {SIDEBAR_ITEMS.map((item) => (
-              <button key={item.key} onClick={() => setActiveSection(item.key)}
-                className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
-                  activeSection === item.key ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"
-                }`}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Content */}
-        <main className="flex-1 py-2 min-w-0">
+        <main className="flex-1 py-2 min-w-0 w-full">
+          {/* Mobile tabs — inside main so they don't break the flex row */}
+          <div className="md:hidden mb-6">
+            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+              {SIDEBAR_ITEMS.map((item) => (
+                <button key={item.key} onClick={() => setActiveSection(item.key)}
+                  className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${
+                    activeSection === item.key ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground"
+                  }`}>
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {activeSection === "atendimento" && (
             <div>
               <SectionHeader label="Atendimento" title="Fale com a gente" />

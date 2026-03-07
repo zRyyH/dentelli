@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Unidade, Embaixador, Coletor, Missao, Relacao, EstoqueItem, SaldoData, Pedido } from "@/lib/types";
+import type { Unidade, Embaixador, Coletor, Missao, Relacao, EstoqueItem, SaldoData, Pedido, Indicacao } from "@/lib/types";
 
 const get = (url: string) =>
   fetch(url).then((r) => { if (!r.ok) throw new Error(); return r.json(); });
@@ -34,6 +34,12 @@ export const useMissoes = () =>
   useQuery<Missao[]>({
     queryKey: ["missoes"],
     queryFn: () => get("/api/admin/missoes"),
+  });
+
+export const useIndicacoes = () =>
+  useQuery<Indicacao[]>({
+    queryKey: ["indicacoes"],
+    queryFn: () => get("/api/admin/indicacoes"),
   });
 
 export const useRelacoes = () =>

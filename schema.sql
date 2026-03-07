@@ -116,7 +116,9 @@ CREATE TABLE
     `missao` TEXT DEFAULT '' NOT NULL,
     `pontos` NUMERIC DEFAULT 0 NOT NULL,
     `updated` TEXT DEFAULT '' NOT NULL,
-    `validade` NUMERIC DEFAULT 0 NOT NULL
+    `validade` NUMERIC DEFAULT 0 NOT NULL,
+    "categoria" TEXT DEFAULT '' NOT NULL,
+    "automatico" BOOLEAN DEFAULT FALSE NOT NULL
   );
 
 CREATE TABLE
@@ -220,8 +222,7 @@ CREATE TABLE
     `telefone` TEXT DEFAULT '' NOT NULL,
     `updated` TEXT DEFAULT '' NOT NULL,
     "usuario_embaixador" TEXT DEFAULT '' NOT NULL,
-    "usuario_coletor" TEXT DEFAULT '' NOT NULL,
-    "valido" BOOLEAN DEFAULT FALSE NOT NULL
+    "usuario_coletor" TEXT DEFAULT '' NOT NULL
   );
 
 CREATE TABLE
@@ -307,8 +308,6 @@ CREATE UNIQUE INDEX `idx_TinCAX7RnV` ON `desejo` (`produto`, `usuario`);
 CREATE UNIQUE INDEX `idx_SqftDwQymZ` ON `produto` (`nome`);
 
 CREATE UNIQUE INDEX `idx_0KWG4dG8Xg` ON `catalogo` (`produto`, `unidade`);
-
-CREATE UNIQUE INDEX `idx_o1qBsDPEX0` ON `indicacao` (`telefone`);
 
 CREATE VIEW
   `estoque` AS
@@ -450,3 +449,5 @@ FROM
       t.created DESC
   )
   /* historico(id,created,tipo,valor,observacao,valido_ate,usuario,usuario_responsavel,missao_id,missao_nome,missao_pontos,pedido_id,pedido_status,pedido_pontos) */;
+
+CREATE UNIQUE INDEX `idx_o1qBsDPEX0` ON `indicacao` (`telefone`);
