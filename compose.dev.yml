@@ -6,13 +6,14 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Mount source for hot reload
+      # Monta o source para hot reload
       - .:/app
-      # Preserve container's node_modules (don't override with host)
+      # Preserva node_modules e .next do container
       - /app/node_modules
-      # Preserve Next.js build cache
       - /app/.next
     environment:
       - NODE_ENV=development
-      - WATCHPACK_POLLING=true   # needed on Windows/WSL for file watch
+      - WATCHPACK_POLLING=true     # força polling no Windows/WSL
+      - CHOKIDAR_USEPOLLING=true   # fallback para watchers legados
+      - CHOKIDAR_INTERVAL=300      # checar mudanças a cada 300ms
     restart: unless-stopped
