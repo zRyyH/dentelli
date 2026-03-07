@@ -4,8 +4,10 @@ const nextConfig: NextConfig = {
   webpack: (config, { dev }) => {
     if (dev) {
       config.watchOptions = {
-        poll: 300,
-        aggregateTimeout: 200,
+        poll: 500,
+        aggregateTimeout: 300,
+        // ignora tudo que não precisa de hot reload
+        ignored: ["**/node_modules/**", "**/.next/**", "**/.git/**"],
       };
     }
     return config;
