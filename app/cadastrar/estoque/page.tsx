@@ -181,7 +181,7 @@ export default function EstoquePage() {
 
       <div>
         <label className={lbl}>Unidade <span className="text-destructive">*</span></label>
-        <Select value={unidadeId} onValueChange={setUnidadeId}>
+        <Select value={unidadeId} onValueChange={setUnidadeId} items={Object.fromEntries(unidades.map((u) => [u.id, u.nome]))}>
           <SelectTrigger className="bg-card text-card-foreground max-w-xs h-9"><SelectValue placeholder="Selecione uma unidade" /></SelectTrigger>
           <SelectContent>{unidades.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
         </Select>
@@ -198,7 +198,7 @@ export default function EstoquePage() {
             </div>
             <div>
               <label className={lbl}>Produto <span className="text-destructive">*</span></label>
-              <Select value={produtoId} onValueChange={setProdutoId}>
+              <Select value={produtoId} onValueChange={setProdutoId} items={Object.fromEntries(produtosDisponiveis.map((p) => [p.id, p.nome]))}>
                 <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma opção" /></SelectTrigger>
                 <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
               </Select>
@@ -224,7 +224,7 @@ export default function EstoquePage() {
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <label className={lbl}>Produto <span className="text-destructive">*</span></label>
-              <Select value={produtoId} onValueChange={setProdutoId}>
+              <Select value={produtoId} onValueChange={setProdutoId} items={Object.fromEntries(produtosDisponiveis.map((p) => [p.id, p.nome]))}>
                 <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
                 <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
               </Select>

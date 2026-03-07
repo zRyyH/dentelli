@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pbFetch, getPbToken, getUserIdFromToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
-export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withWebhook(async (_request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
   const userId = getUserIdFromToken(token);
@@ -24,4 +25,4 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
   if (!res.ok) return apiError("Erro ao cancelar pedido");
 
   return NextResponse.json({ ok: true });
-}
+});

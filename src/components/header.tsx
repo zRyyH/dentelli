@@ -178,7 +178,7 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
                   </div>
                 ) : (
                   <div className="flex flex-1 flex-col overflow-hidden">
-                    <div className="flex-1 space-y-3 overflow-y-auto py-4">
+                    <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
                       {items.map((item) => {
                         const prod = (products || []).find((p) => p.id === item.produto);
                         const img = prod ? getProductImageUrl(prod) : "";
@@ -210,7 +210,7 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
                         );
                       })}
                     </div>
-                    <div className="space-y-3 border-t border-border pb-2 pt-4">
+                    <div className="space-y-3 border-t border-border px-4 pb-2 pt-4">
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">Total</span>
                         <span className="text-lg font-bold text-primary">{totalPontos.toLocaleString("pt-BR")} pts</span>
@@ -236,12 +236,12 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
               if (!showAdminMenus) return null;
               return (
                 <DropdownMenu key="cadastrar">
-                  <DropdownMenuTrigger className="relative flex items-center gap-1.5 rounded-full px-5 py-2 text-[13px] font-semibold tracking-wide">
+                  <DropdownMenuTrigger className={`group relative flex items-center gap-1.5 rounded-full px-5 py-2 text-[13px] font-semibold tracking-wide transition-colors ${!isActive ? "hover:bg-primary/8 hover:text-primary" : ""}`}>
                       {isActive && <span className="nav-pill pointer-events-none absolute inset-0 rounded-full bg-primary shadow-sm" />}
-                      <span className={`relative z-10 ${isActive ? "text-primary-foreground" : "text-foreground/65"}`}>CADASTRAR</span>
-                      <ChevronDown className={`relative z-10 h-3 w-3 ${isActive ? "text-primary-foreground" : "text-foreground/65"}`} />
+                      <span className={`relative z-10 ${isActive ? "text-primary-foreground" : "text-foreground/65 group-hover:text-primary"}`}>CADASTRAR</span>
+                      <ChevronDown className={`relative z-10 h-3 w-3 ${isActive ? "text-primary-foreground" : "text-foreground/65 group-hover:text-primary"}`} />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="z-[60] border border-border bg-card shadow-xl">
+                  <DropdownMenuContent className="z-[60]">
                     {CADASTRAR_OPTIONS.map((opt) => (
                       <DropdownMenuItem key={opt.path} onClick={() => router.push(opt.path)} className="cursor-pointer">
                         {opt.label}

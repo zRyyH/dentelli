@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pbFetch, getPbToken, apiError, fireWebhooks } from "@/lib/pb-server";
+import { pbFetch, getPbToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
-export async function POST(request: NextRequest) {
+export const POST = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
 
   const body = await request.json();
-  const { nome, telefone, relacaoId, embaixadorId, coletorId, valido, coletor, embaixador, relacao, unidade } = body;
+  const { nome, telefone, relacaoId, embaixadorId, coletorId, valido } = body;
 
   const res = await pbFetch("/api/collections/indicacao/records", {
     method: "POST",
@@ -23,7 +24,5 @@ export async function POST(request: NextRequest) {
   if (!res.ok) return apiError("Falha ao cadastrar indicação");
   const indicacaoRecord = await res.json();
 
-  await fireWebhooks("INDICACAO", { indicacao: indicacaoRecord, coletor, embaixador, relacao, unidade });
-
   return NextResponse.json({ ok: true, indicacao: indicacaoRecord });
-}
+});

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pbFetch, getPbToken, apiError, fireWebhooks } from "@/lib/pb-server";
+import { pbFetch, getPbToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = await getPbToken();
@@ -10,7 +11,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   return NextResponse.json(await res.json());
 }
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withWebhook(async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
 
@@ -19,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const {
     unidadeId, nome, prontuario, tipo, sexo,
     telefone, nascimento, cpf, observacao, email, senha,
-    isAdministrador, isColetor, isEmbaixador, unidade,
+    isAdministrador, isColetor, isEmbaixador,
   } = body;
 
   const usuarioBody: any = {
@@ -51,7 +52,5 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const usuarioRecord = await res.json();
   const { password: _p, passwordConfirm: _pc, tokenKey: _tk, ...usuarioSafe } = usuarioRecord;
 
-  await fireWebhooks("USUARIO", { acao: "editar", usuario: usuarioSafe, unidade });
-
   return NextResponse.json({ ok: true, usuario: usuarioSafe });
-}
+});

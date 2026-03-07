@@ -150,7 +150,7 @@ export default function IndicacoesPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={lbl}>Coletor</label>
-          <Select value={coletorId} onValueChange={setColetorId}>
+          <Select value={coletorId} onValueChange={setColetorId} items={Object.fromEntries(coletores.map((c) => [c.id, c.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um coletor" /></SelectTrigger>
             <SelectContent>{coletores.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}</SelectContent>
           </Select>
@@ -166,7 +166,7 @@ export default function IndicacoesPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className={lbl}>Embaixador</label>
-          <Select value={embaixadorId} onValueChange={setEmbaixadorId} disabled={!unidadeId}>
+          <Select value={embaixadorId} onValueChange={setEmbaixadorId} disabled={!unidadeId} items={Object.fromEntries(embaixadores.map((e) => [e.id, e.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um embaixador" /></SelectTrigger>
             <SelectContent>{embaixadores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent>
           </Select>
@@ -194,14 +194,14 @@ export default function IndicacoesPage() {
         </div>
         <div>
           <label className={lbl}>Relação</label>
-          <Select value={relacaoId} onValueChange={setRelacaoId}>
+          <Select value={relacaoId} onValueChange={setRelacaoId} items={Object.fromEntries(relacoes.map((r) => [r.id, r.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma relação" /></SelectTrigger>
             <SelectContent>{relacoes.map((r) => <SelectItem key={r.id} value={r.id}>{r.nome}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
           <label className={lbl}>Válido</label>
-          <Select value={valido} onValueChange={setValido}>
+          <Select value={valido} onValueChange={setValido} items={{ sim: "Sim", nao: "Não" }}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="sim">Sim</SelectItem>

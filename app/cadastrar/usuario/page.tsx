@@ -229,7 +229,7 @@ export default function UsuarioPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={lbl}>Unidade <span className="text-destructive">*</span></label>
-          <Select value={unidadeId} onValueChange={setUnidadeId}>
+          <Select value={unidadeId} onValueChange={setUnidadeId} items={Object.fromEntries(unidades.map((u) => [u.id, u.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma unidade" /></SelectTrigger>
             <SelectContent>{unidades.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
           </Select>
@@ -237,7 +237,7 @@ export default function UsuarioPage() {
         {modo === "editar" && (
           <div>
             <label className={lbl}>Usuário</label>
-            <Select value={usuarioId} onValueChange={setUsuarioId} disabled={!unidadeId}>
+            <Select value={usuarioId} onValueChange={setUsuarioId} disabled={!unidadeId} items={Object.fromEntries(allUsuarios.map((u) => [u.id, u.nome]))}>
               <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
               <SelectContent>{allUsuarios.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
             </Select>
@@ -276,7 +276,7 @@ export default function UsuarioPage() {
           </div>
           <div>
             <label className={lbl}>Tipo</label>
-            <Select value={tipo} onValueChange={setTipo}>
+            <Select value={tipo} onValueChange={setTipo} items={Object.fromEntries([...new Set(["PACIENTE", ...tipoOptions])].map((opt) => [opt, opt]))}>
               <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 {[...new Set(["PACIENTE", ...tipoOptions])].map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
@@ -285,7 +285,7 @@ export default function UsuarioPage() {
           </div>
           <div>
             <label className={lbl}>Sexo</label>
-            <Select value={sexo} onValueChange={setSexo}>
+            <Select value={sexo} onValueChange={setSexo} items={{ M: "Homem", F: "Mulher" }}>
               <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="M">Homem</SelectItem>

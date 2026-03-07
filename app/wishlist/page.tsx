@@ -40,8 +40,8 @@ export default function WishlistPage() {
             <Heart className="h-16 w-16 mb-4 opacity-25" />
             <p className="text-lg font-medium text-foreground">Sua lista de desejos está vazia</p>
             <p className="text-sm mt-1">Marque produtos com ❤️ para adicioná-los aqui</p>
-            <Button asChild className="mt-6 rounded-full">
-              <Link href="/rewards">Ver Recompensas</Link>
+            <Button nativeButton={false} render={<Link href="/rewards" />} className="mt-6 rounded-full">
+              Ver Recompensas
             </Button>
           </div>
         ) : (

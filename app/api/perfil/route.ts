@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pbFetch, getPbToken, getUserIdFromToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
 export async function GET(_request: NextRequest) {
   const token = await getPbToken();
@@ -12,7 +13,7 @@ export async function GET(_request: NextRequest) {
   return NextResponse.json(await res.json());
 }
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
   const userId = getUserIdFromToken(token);
@@ -34,4 +35,4 @@ export async function PATCH(request: NextRequest) {
   }
 
   return NextResponse.json(await res.json());
-}
+});

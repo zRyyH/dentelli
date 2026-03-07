@@ -277,7 +277,8 @@ CREATE TABLE
     "instagram" TEXT DEFAULT '' NOT NULL,
     "informacao" JSON DEFAULT NULL,
     "regulamento" TEXT DEFAULT '' NOT NULL,
-    "periodo" TEXT DEFAULT '' NOT NULL
+    "periodo" TEXT DEFAULT '' NOT NULL,
+    "webhook" TEXT DEFAULT '' NOT NULL
   );
 
 CREATE TABLE
@@ -449,12 +450,3 @@ FROM
       t.created DESC
   )
   /* historico(id,created,tipo,valor,observacao,valido_ate,usuario,usuario_responsavel,missao_id,missao_nome,missao_pontos,pedido_id,pedido_status,pedido_pontos) */;
-
-CREATE TABLE
-  `webhook` (
-    `created` TEXT DEFAULT '' NOT NULL,
-    `id` TEXT PRIMARY KEY DEFAULT ('r' || lower(hex (randomblob (7)))) NOT NULL,
-    `updated` TEXT DEFAULT '' NOT NULL,
-    "webhook" TEXT DEFAULT '' NOT NULL,
-    "tipo" TEXT DEFAULT '' NOT NULL
-  );

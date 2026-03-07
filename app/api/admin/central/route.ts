@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pbFetch, getPbToken, getUserIdFromToken, apiError, fireWebhooks } from "@/lib/pb-server";
+import { pbFetch, getPbToken, getUserIdFromToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
-export async function POST(request: NextRequest) {
+export const POST = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
   const adminId = getUserIdFromToken(token);
@@ -12,8 +13,6 @@ export async function POST(request: NextRequest) {
     tipo, // "CREDITO" | "DEBITO"
     embaixadorId, missaoId, pontos, observacao,
     pedidoId, custoDebito, observacaoDebito,
-    // Para webhook enrichment
-    embaixador, unidade, missao, pedido: pedidoData,
     saldoPontos,
   } = body;
 
@@ -33,14 +32,6 @@ export async function POST(request: NextRequest) {
     });
     if (!res.ok) return apiError("Falha ao pontuar");
     const transacaoRecord = await res.json();
-
-    await fireWebhooks("CENTRAL_DE_PONTOS", {
-      tipoTransacao: "CREDITO",
-      transacao: transacaoRecord,
-      embaixador,
-      unidade,
-      missao,
-    });
 
     return NextResponse.json({ ok: true, transacao: transacaoRecord });
   }
@@ -70,18 +61,8 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ status: "CONCLUIDO" }),
     });
 
-    await fireWebhooks("CENTRAL_DE_PONTOS", {
-      tipoTransacao: "DEBITO",
-      transacao: transacaoRecord,
-      embaixador,
-      unidade,
-      pedido: pedidoData,
-      saldoAntes: saldoPontos,
-      saldoApos,
-    });
-
     return NextResponse.json({ ok: true, transacao: transacaoRecord });
   }
 
   return apiError("Tipo inválido", 400);
-}
+});

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pbFetch, getPbToken, getUserIdFromToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
 async function fetchCartItems(itemIds: string[]) {
   if (!itemIds.length) return [];
@@ -9,7 +10,7 @@ async function fetchCartItems(itemIds: string[]) {
   return (await res.json()).items as any[];
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
   const userId = getUserIdFromToken(token);
@@ -58,4 +59,4 @@ export async function POST(request: NextRequest) {
   });
 
   return NextResponse.json({ ok: true });
-}
+});

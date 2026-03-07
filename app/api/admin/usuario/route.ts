@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pbFetch, getPbToken, apiError, fireWebhooks } from "@/lib/pb-server";
+import { pbFetch, getPbToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
-export async function POST(request: NextRequest) {
+export const POST = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
 
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
     unidadeId, nome, email, senha, prontuario, tipo, sexo,
     telefone, nascimento, cpf, observacao,
     isAdministrador, isColetor, isEmbaixador,
-    nivelInicianteId, unidade,
+    nivelInicianteId,
   } = body;
 
   const usuarioBody: any = {
@@ -33,7 +34,7 @@ export async function POST(request: NextRequest) {
     verified: true,
     nivel: nivelInicianteId,
   };
-  if (nascimento) usuarioBody.nascimento = nascimento; // já vem em ISO do cliente
+  if (nascimento) usuarioBody.nascimento = nascimento;
 
   const res = await pbFetch("/api/collections/usuario/records", {
     method: "POST",
@@ -47,7 +48,5 @@ export async function POST(request: NextRequest) {
   const usuarioRecord = await res.json();
   const { password: _p, passwordConfirm: _pc, tokenKey: _tk, ...usuarioSafe } = usuarioRecord;
 
-  await fireWebhooks("USUARIO", { acao: "cadastrar", usuario: usuarioSafe, unidade });
-
   return NextResponse.json({ ok: true, usuario: usuarioSafe });
-}
+});

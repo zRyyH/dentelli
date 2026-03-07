@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PB_BASE_URL, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
-export async function POST(request: NextRequest) {
+export const POST = withWebhook(async (request: NextRequest) => {
   const { email, password } = await request.json();
 
   const res = await fetch(`${PB_BASE_URL}/api/collections/usuario/auth-with-password`, {
@@ -25,4 +26,4 @@ export async function POST(request: NextRequest) {
     sameSite: "lax",
   });
   return response;
-}
+});

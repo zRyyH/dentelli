@@ -200,14 +200,14 @@ export default function CentralPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className={lbl}>Unidade</label>
-          <Select value={unidadeId} onValueChange={setUnidadeId}>
+          <Select value={unidadeId} onValueChange={setUnidadeId} items={Object.fromEntries(unidades.map((u) => [u.id, u.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma unidade" /></SelectTrigger>
             <SelectContent>{unidades.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div>
           <label className={lbl}>Embaixador</label>
-          <Select value={embaixadorId} onValueChange={setEmbaixadorId} disabled={!unidadeId}>
+          <Select value={embaixadorId} onValueChange={setEmbaixadorId} disabled={!unidadeId} items={Object.fromEntries(embaixadores.map((e) => [e.id, e.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um embaixador" /></SelectTrigger>
             <SelectContent>{embaixadores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent>
           </Select>
@@ -224,7 +224,7 @@ export default function CentralPage() {
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
           <div>
             <label className={lbl}>Missão</label>
-            <Select value={missaoId} onValueChange={handleMissaoChange}>
+            <Select value={missaoId} onValueChange={handleMissaoChange} items={Object.fromEntries(missoes.map((m) => [m.id, m.missao]))}>
               <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma opção" /></SelectTrigger>
               <SelectContent>{missoes.map((m) => <SelectItem key={m.id} value={m.id}>{m.missao}</SelectItem>)}</SelectContent>
             </Select>
@@ -243,11 +243,11 @@ export default function CentralPage() {
           <div className="grid grid-cols-[1fr_6rem] gap-4 items-end">
             <div>
               <label className={lbl}>Pedido</label>
-              <Select value={pedidoId} onValueChange={selectPedido} disabled={!embaixadorId}>
+              <Select value={pedidoId} onValueChange={selectPedido} disabled={!embaixadorId} items={Object.fromEntries(pedidos.map((p, idx) => [p.id, `Pedido ${idx + 1} • ${new Date(p.created).toLocaleDateString("pt-BR")}`]))}>
                 <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um pedido" /></SelectTrigger>
                 <SelectContent>
                   {pedidos.map((p, idx) => (
-                    <SelectItem key={p.id} value={p.id}>
+                    <SelectItem key={p.id} value={p.id} label={`Pedido ${idx + 1} • ${new Date(p.created).toLocaleDateString("pt-BR")}`}>
                       <span className="flex items-center w-full gap-2 uppercase text-xs">
                         <span className="font-bold shrink-0">{idx + 1}.</span>
                         <span className="shrink-0">ID: {p.id}</span>

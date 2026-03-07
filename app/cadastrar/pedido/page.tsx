@@ -95,7 +95,7 @@ export default function CadastrarPedidoPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={lbl}>Embaixador</label>
-          <Select value={embaixadorId} onValueChange={setEmbaixadorId}>
+          <Select value={embaixadorId} onValueChange={setEmbaixadorId} items={Object.fromEntries(embaixadores.map((e) => [e.id, e.nome]))}>
             <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um embaixador" /></SelectTrigger>
             <SelectContent>{embaixadores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent>
           </Select>
@@ -121,10 +121,10 @@ export default function CadastrarPedidoPage() {
         <Label className={lbl}>Adicionar produto</Label>
         <div className="flex gap-2 items-end">
           <div className="flex-1">
-            <Select value={novoProdutoId} onValueChange={setNovoProdutoId}>
+            <Select value={novoProdutoId} onValueChange={setNovoProdutoId} items={Object.fromEntries(produtos.map((p) => [p.id, `${p.nome} — ${p.pontos.toLocaleString("pt-BR")} pts`]))}>
               <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
               <SelectContent>
-                {produtos.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome} — {p.pontos.toLocaleString("pt-BR")} pts</SelectItem>)}
+                {produtos.map((p) => <SelectItem key={p.id} value={p.id} label={`${p.nome} — ${p.pontos.toLocaleString("pt-BR")} pts`}>{p.nome} — {p.pontos.toLocaleString("pt-BR")} pts</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

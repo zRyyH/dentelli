@@ -1,7 +1,5 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import type { WebhookTipo } from "./types";
-
 export const PB_BASE_URL = "https://pbdentelli.awpsoft.com.br";
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
@@ -43,24 +41,3 @@ export function requireAuth(token: string | null): token is string {
   return token !== null;
 }
 
-// ── Webhooks (server-side) ────────────────────────────────────────────────────
-
-export async function fireWebhooks(tipo: WebhookTipo, payload: object): Promise<void> {
-  try {
-    const filter = encodeURIComponent(`tipo='${tipo}'`);
-    const res = await pbFetch(`/api/collections/webhook/records?filter=${filter}&perPage=100`);
-    if (!res.ok) return;
-    const data = await res.json();
-    const webhooks: Array<{ webhook: string }> = data.items ?? [];
-    if (!webhooks.length) return;
-    await Promise.allSettled(
-      webhooks.map((w) =>
-        fetch(w.webhook, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tipo, ...payload }),
-        })
-      )
-    );
-  } catch { /* silencioso */ }
-}

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pbFetch, getPbToken, apiError } from "@/lib/pb-server";
+import { withWebhook } from "@/lib/with-webhook";
 
-export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withWebhook(async (_request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
 
@@ -10,4 +11,4 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   if (!res.ok) return apiError("Falha ao remover da lista de desejos");
 
   return NextResponse.json({ ok: true });
-}
+});
