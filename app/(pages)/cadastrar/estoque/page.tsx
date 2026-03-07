@@ -65,7 +65,7 @@ export default function EstoquePage() {
 
   const estoqueQtd = (() => {
     if (!produtoId || !unidadeId) return "";
-    const mov = estoques.find((e) => e.produto === produtoId);
+    const mov = estoques.find((e) => e.produto_id === produtoId);
     return mov ? String(mov.quantidade) : "0";
   })();
 
@@ -80,7 +80,7 @@ export default function EstoquePage() {
   useEffect(() => { setProdutoId(""); }, [unidadeId]);
 
   const produtosDisponiveis = tipoFluxo === "SAIDA"
-    ? produtos.filter((p) => estoques.some((e) => e.produto === p.id))
+    ? produtos.filter((p) => estoques.some((e) => e.produto_id === p.id && e.quantidade > 0))
     : produtos;
 
   const buildBody = (item: BatchEstoque) => {

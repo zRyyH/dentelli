@@ -3,7 +3,7 @@ import { pbFetch, apiError } from "@/lib/pb-server";
 
 export async function GET(request: NextRequest) {
   const unidadeId = new URL(request.url).searchParams.get("unidadeId");
-  const filter = unidadeId ? encodeURIComponent(`unidade='${unidadeId}'`) : "";
+  const filter = unidadeId ? encodeURIComponent(`unidade_id='${unidadeId}'`) : "";
   const url = filter
     ? `/api/collections/estoque/records?filter=${filter}&perPage=500`
     : `/api/collections/estoque/records?perPage=500`;

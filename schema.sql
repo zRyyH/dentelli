@@ -198,7 +198,8 @@ CREATE TABLE
     `quantidade` NUMERIC DEFAULT 0 NOT NULL,
     `updated` TEXT DEFAULT '' NOT NULL,
     "unidade" TEXT DEFAULT '' NOT NULL,
-    "tipo" TEXT DEFAULT '' NOT NULL
+    "tipo" TEXT DEFAULT '' NOT NULL,
+    "pedido" TEXT DEFAULT '' NOT NULL
   );
 
 CREATE TABLE

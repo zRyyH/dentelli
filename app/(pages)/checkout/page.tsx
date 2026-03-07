@@ -29,7 +29,7 @@ export default function CheckoutPage() {
   const { data: products = [] } = useProducts();
   const [submitting, setSubmitting] = useState(false);
 
-  const { data: estoqueItems = [] } = useQuery<EstoqueItem[]>({
+  const { data: estoqueItems = [], isLoading: estoqueLoading } = useQuery<EstoqueItem[]>({
     queryKey: ["estoque-checkout"],
     queryFn: () => fetch("/api/admin/estoques").then((r) => r.ok ? r.json() : []),
   });
@@ -39,6 +39,7 @@ export default function CheckoutPage() {
     queryFn: () => fetch("/api/saldo").then((r) => r.ok ? r.json() : { saldo: 0 }),
   });
 
+  const pageLoading = isLoading || estoqueLoading || saldoLoading;
   const saldo = saldoData?.saldo ?? 0;
   const saldoApos = saldo - totalPontos;
   const insufficientBalance = totalPontos > saldo;
@@ -95,7 +96,7 @@ export default function CheckoutPage() {
       </div>
 
       <main className="max-w-2xl mx-auto w-full px-4 py-6 space-y-4 flex-1">
-        {isLoading ? (
+        {pageLoading ? (
           <div className="flex items-center justify-center py-24">
             <Loader2 className="h-7 w-7 animate-spin text-primary" />
           </div>
@@ -119,15 +120,11 @@ export default function CheckoutPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Seu Saldo</p>
-                {saldoLoading ? (
-                  <div className="h-6 w-24 bg-muted rounded animate-pulse mt-0.5" />
-                ) : (
-                  <p className="text-2xl font-bold text-primary">
-                    {saldo.toLocaleString("pt-BR")} <span className="text-base font-semibold text-muted-foreground">pts</span>
-                  </p>
-                )}
+                <p className="text-2xl font-bold text-primary">
+                  {saldo.toLocaleString("pt-BR")} <span className="text-base font-semibold text-muted-foreground">pts</span>
+                </p>
               </div>
-              {!saldoLoading && totalPontos > 0 && (
+              {totalPontos > 0 && (
                 <div className="text-right shrink-0">
                   <p className="text-xs text-muted-foreground font-medium">Este pedido</p>
                   <p className={`text-sm font-bold ${insufficientBalance ? "text-destructive" : ""}`}>

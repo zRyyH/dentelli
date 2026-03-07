@@ -119,9 +119,12 @@ export interface Relacao {
 
 export interface EstoqueItem {
   id: string;
-  produto: string;
-  unidade: string;
+  produto_id: string;
+  produto_nome: string;
+  unidade_id: string;
+  unidade_nome: string;
   quantidade: number;
+  ativo: boolean;
 }
 
 export interface ThemeColors {

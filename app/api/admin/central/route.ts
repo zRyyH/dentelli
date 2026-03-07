@@ -52,6 +52,31 @@ export const POST = withWebhook(async (request: NextRequest) => {
     const saldoApos = saldoPontos - custoDebito;
     if (saldoApos < 0) return apiError("Saldo insuficiente para este resgate", 400);
 
+    // Buscar unidade do embaixador
+    const embaixadorRes = await pbFetch(`/api/collections/usuario/records/${embaixadorId}`);
+    if (!embaixadorRes.ok) return apiError("Falha ao buscar embaixador");
+    const embaixadorRecord = await embaixadorRes.json();
+    const unidadeId: string = embaixadorRecord.unidade;
+
+    // Buscar pedido para obter os itens
+    const pedidoRes = await pbFetch(`/api/collections/pedido/records/${pedidoId}`);
+    if (!pedidoRes.ok) return apiError("Falha ao buscar pedido");
+    const pedidoRecord = await pedidoRes.json();
+    const itemIds: string[] = Array.isArray(pedidoRecord.item) ? pedidoRecord.item : [];
+
+    // Buscar registros dos itens
+    const itemRecords: { produto: string; quantidade: number }[] = [];
+    await Promise.all(
+      itemIds.map(async (itemId) => {
+        const itemRes = await pbFetch(`/api/collections/item/records/${itemId}`);
+        if (itemRes.ok) {
+          const itemData = await itemRes.json();
+          itemRecords.push({ produto: itemData.produto, quantidade: itemData.quantidade });
+        }
+      })
+    );
+
+    // Criar transação de débito
     const res = await pbFetch("/api/collections/transacao/records", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -67,11 +92,33 @@ export const POST = withWebhook(async (request: NextRequest) => {
     if (!res.ok) return apiError("Falha ao registrar resgate");
     const transacaoRecord = await res.json();
 
+    // Marcar pedido como concluído
     await pbFetch(`/api/collections/pedido/records/${pedidoId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "CONCLUIDO" }),
     });
+
+    // Registrar saída no fluxo para cada item do pedido
+    if (unidadeId && itemRecords.length > 0) {
+      await Promise.all(
+        itemRecords.map((item) =>
+          pbFetch("/api/collections/fluxo/records", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tipo: "SAIDA",
+              produto: item.produto,
+              quantidade: item.quantidade,
+              unidade: unidadeId,
+              pedido: pedidoId,
+              observacao: "Resgate",
+              custo_unitario: 0,
+            }),
+          })
+        )
+      );
+    }
 
     return NextResponse.json({ ok: true, transacao: transacaoRecord });
   }

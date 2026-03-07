@@ -9,6 +9,17 @@ export const POST = withWebhook(async (request: NextRequest) => {
   const body = await request.json();
   const { tipo, unidadeId, produtoId, quantidade, nomeLote, custoUnitario, observacao } = body;
 
+  if (tipo === "SAIDA") {
+    const filter = encodeURIComponent(`unidade_id='${unidadeId}' && produto_id='${produtoId}'`);
+    const estoqueRes = await pbFetch(`/api/collections/estoque/records?filter=${filter}&perPage=1`);
+    if (!estoqueRes.ok) return apiError("Erro ao verificar estoque");
+    const estoqueData = await estoqueRes.json();
+    const estoqueAtual: number = estoqueData.items?.[0]?.quantidade ?? 0;
+    if (quantidade > estoqueAtual) {
+      return apiError(`Estoque insuficiente. Disponível: ${estoqueAtual}`, 400);
+    }
+  }
+
   const fluxoBody: any = {
     tipo,
     unidade: unidadeId,
