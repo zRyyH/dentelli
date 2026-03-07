@@ -37,7 +37,7 @@ export default function PerfilPage() {
   }, [userData]);
 
   const handleSave = async () => {
-    if (!userId) return;
+    if (!userData?.id) return;
     const body: Record<string, string> = {};
     if (nome !== userData?.nome) body.nome = nome;
     if (email !== userData?.email) body.email = email;

@@ -8,9 +8,11 @@ import { cn } from "@/lib/utils"
 
 function Select({
   value,
+  items: _items,
   ...props
 }: React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root> & {
   value?: string | null
+  items?: Record<string, string>
 }) {
   return (
     <SelectPrimitive.Root
@@ -121,8 +123,8 @@ SelectLabel.displayName = SelectPrimitive.Label.displayName
 
 const SelectItem = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & { label?: string }
+>(({ className, children, label: _label, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
     data-slot="select-item"
