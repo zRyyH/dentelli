@@ -171,9 +171,10 @@ CREATE TABLE
     `tokenKey` TEXT DEFAULT '' NOT NULL,
     `updated` TEXT DEFAULT '' NOT NULL,
     `verified` BOOLEAN DEFAULT FALSE NOT NULL,
-    "unidade" TEXT DEFAULT '' NOT NULL,
     "nivel" TEXT DEFAULT '' NOT NULL,
-    `tipo` TEXT DEFAULT '' NOT NULL
+    `tipo` TEXT DEFAULT '' NOT NULL,
+    `unidade` JSON DEFAULT '[]' NOT NULL,
+    "dono" BOOLEAN DEFAULT FALSE NOT NULL
   );
 
 CREATE TABLE
@@ -211,7 +212,8 @@ CREATE TABLE
     `updated` TEXT DEFAULT '' NOT NULL,
     "usuario" TEXT DEFAULT '' NOT NULL,
     `item` JSON DEFAULT '[]' NOT NULL,
-    "observacao" TEXT DEFAULT '' NOT NULL
+    "observacao" TEXT DEFAULT '' NOT NULL,
+    "unidade" TEXT DEFAULT '' NOT NULL
   );
 
 CREATE TABLE
@@ -223,7 +225,8 @@ CREATE TABLE
     `telefone` TEXT DEFAULT '' NOT NULL,
     `updated` TEXT DEFAULT '' NOT NULL,
     "usuario_embaixador" TEXT DEFAULT '' NOT NULL,
-    "usuario_coletor" TEXT DEFAULT '' NOT NULL
+    "usuario_coletor" TEXT DEFAULT '' NOT NULL,
+    "unidade" TEXT DEFAULT '' NOT NULL
   );
 
 CREATE TABLE
@@ -259,7 +262,8 @@ CREATE TABLE
     "tipo" TEXT DEFAULT '' NOT NULL,
     "observacao" TEXT DEFAULT '' NOT NULL,
     "valor" NUMERIC DEFAULT 0 NOT NULL,
-    "indicacao" TEXT DEFAULT '' NOT NULL
+    "indicacao" TEXT DEFAULT '' NOT NULL,
+    "unidade" TEXT DEFAULT '' NOT NULL
   );
 
 CREATE TABLE
@@ -366,46 +370,62 @@ CREATE UNIQUE INDEX `idx_3FHfRPq2nJ` ON `usuario` (`telefone`);
 
 CREATE UNIQUE INDEX `idx_M5xZsfskEV` ON `usuario` (`cpf`);
 
+CREATE UNIQUE INDEX `idx_o1qBsDPEX0` ON `indicacao` (`telefone`);
+
 CREATE VIEW
   `saldo` AS
 SELECT
   *
 FROM
   (
-    WITH
-      pedido_pendente AS (
-        SELECT
-          usuario,
-          COALESCE(SUM(pontos), 0) AS total
-        FROM
-          pedido
-        WHERE
-          status = 'PENDENTE'
-        GROUP BY
-          usuario
-      )
     SELECT
-      t.usuario AS id,
-      t.usuario,
-      CAST(
-        COALESCE(SUM(IIF (t.tipo = 'CREDITO', t.valor, 0)), 0) AS REAL
-      ) AS credito,
-      CAST(
-        COALESCE(SUM(IIF (t.tipo = 'DEBITO', t.valor, 0)), 0) AS REAL
-      ) AS debito,
-      CAST(COALESCE(pp.total, 0) AS REAL) AS pendente,
-      CAST(
-        (
-          COALESCE(SUM(IIF (t.tipo = 'CREDITO', t.valor, 0)), 0) - COALESCE(SUM(IIF (t.tipo = 'DEBITO', t.valor, 0)), 0) - COALESCE(pp.total, 0)
-        ) AS REAL
-      ) AS saldo
+      CAST(`id` as TEXT) `id`,
+      `usuario`,
+      `unidade`,
+      `credito`,
+      `debito`,
+      `pendente`,
+      `saldo`
     FROM
-      transacao t
-      LEFT JOIN pedido_pendente pp ON pp.usuario = t.usuario
-    GROUP BY
-      t.usuario
+      (
+        SELECT
+          (t.usuario || '_' || t.unidade) AS id,
+          t.usuario AS usuario,
+          t.unidade AS unidade,
+          CAST(
+            COALESCE(SUM(IIF (t.tipo = 'CREDITO', t.valor, 0)), 0) AS REAL
+          ) AS credito,
+          CAST(
+            COALESCE(SUM(IIF (t.tipo = 'DEBITO', t.valor, 0)), 0) AS REAL
+          ) AS debito,
+          CAST(COALESCE(pp.total, 0) AS REAL) AS pendente,
+          CAST(
+            (
+              COALESCE(SUM(IIF (t.tipo = 'CREDITO', t.valor, 0)), 0) - COALESCE(SUM(IIF (t.tipo = 'DEBITO', t.valor, 0)), 0) - COALESCE(pp.total, 0)
+            ) AS REAL
+          ) AS saldo
+        FROM
+          transacao t
+          LEFT JOIN (
+            SELECT
+              usuario AS usuario,
+              unidade AS unidade,
+              COALESCE(SUM(pontos), 0) AS total
+            FROM
+              pedido
+            WHERE
+              status = 'PENDENTE'
+            GROUP BY
+              usuario,
+              unidade
+          ) pp ON pp.usuario = t.usuario
+          AND pp.unidade = t.unidade
+        GROUP BY
+          t.usuario,
+          t.unidade
+      )
   )
-  /* saldo(id,usuario,credito,debito,pendente,saldo) */;
+  /* saldo(id,usuario,unidade,credito,debito,pendente,saldo) */;
 
 CREATE VIEW
   `historico` AS
@@ -414,8 +434,8 @@ SELECT
 FROM
   (
     SELECT
-      t.id,
-      t.created,
+      t.id AS id,
+      t.created AS created,
       CAST(t.tipo AS TEXT) AS tipo,
       CAST(t.valor AS REAL) AS valor,
       CAST(t.observacao AS TEXT) AS observacao,
@@ -434,6 +454,7 @@ FROM
       ) AS valido_ate,
       CAST(t.usuario AS TEXT) AS usuario,
       CAST(t.usuario_responsavel AS TEXT) AS usuario_responsavel,
+      CAST(t.unidade AS TEXT) AS unidade,
       CAST((t.missao || '') AS TEXT) AS missao_id,
       CAST(COALESCE(m.missao, '') AS TEXT) AS missao_nome,
       CAST(COALESCE(m.pontos, 0) AS REAL) AS missao_pontos,
@@ -449,6 +470,4 @@ FROM
     ORDER BY
       t.created DESC
   )
-  /* historico(id,created,tipo,valor,observacao,valido_ate,usuario,usuario_responsavel,missao_id,missao_nome,missao_pontos,pedido_id,pedido_status,pedido_pontos) */;
-
-CREATE UNIQUE INDEX `idx_o1qBsDPEX0` ON `indicacao` (`telefone`);
+  /* historico(id,created,tipo,valor,observacao,valido_ate,usuario,usuario_responsavel,unidade,missao_id,missao_nome,missao_pontos,pedido_id,pedido_status,pedido_pontos) */;

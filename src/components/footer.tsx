@@ -50,70 +50,112 @@ export function SiteFooter() {
   ].filter((s) => s.href);
 
   return (
-    <footer className="border-t border-border bg-primary py-12">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 md:grid-cols-3 md:gap-16 text-center justify-items-center">
-        <div>
-          <h4 className="mb-4 text-lg font-bold text-primary-foreground">Atendimento Ao Cliente</h4>
-          <p className="mb-3 text-sm font-bold text-primary-foreground/90">Horário de Atendimento</p>
-          <div className="space-y-2 text-sm text-primary-foreground/70">
-            <p className="flex items-center gap-2 justify-center">
-              <Clock className="h-4 w-4 shrink-0" /> Segunda a sexta: 8:00 às 18:00h
-            </p>
-            <p className="flex items-center gap-2 justify-center">
-              <Phone className="h-4 w-4 shrink-0" />
-              {tema?.whatsapp ? (
-                <a href={`https://wa.me/${tema.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:text-primary-foreground transition-colors">
-                  WhatsApp: {formatPhone(tema.whatsapp)}
-                </a>
-              ) : "WhatsApp"}
-            </p>
-            <p className="flex items-center gap-2 justify-center">
-              <Mail className="h-4 w-4 shrink-0" />
-              {tema?.email ? (
-                <a href={`mailto:${tema.email}`} className="hover:text-primary-foreground transition-colors">
-                  {tema.email}
-                </a>
-              ) : "E-mail"}
-            </p>
+    <footer
+      className="relative overflow-hidden"
+      style={{
+        background: "linear-gradient(to bottom, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 30%, black) 100%)",
+      }}
+    >
+      <div className="mx-auto max-w-6xl px-6 pt-16 pb-10">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-3 md:gap-16 text-center justify-items-center">
+
+          {/* Atendimento */}
+          <div className="flex flex-col items-center px-8">
+            <span className="mb-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-primary-foreground/40">Suporte</span>
+            <h4 className="mb-5 text-base font-bold text-primary-foreground">Atendimento ao Cliente</h4>
+            <div className="space-y-3 text-sm text-primary-foreground/60">
+              <p className="flex items-center gap-2 justify-center">
+                <Clock className="h-3.5 w-3.5 shrink-0 text-primary-foreground/40" />
+                Segunda a sexta: 8:00 às 18:00h
+              </p>
+              <p className="flex items-center gap-2 justify-center">
+                <Phone className="h-3.5 w-3.5 shrink-0 text-primary-foreground/40" />
+                {tema?.whatsapp ? (
+                  <a
+                    href={`https://wa.me/${tema.whatsapp.replace(/\D/g, "")}`}
+                    target="_blank" rel="noreferrer"
+                    className="hover:text-primary-foreground transition-colors"
+                  >
+                    WhatsApp: {formatPhone(tema.whatsapp)}
+                  </a>
+                ) : "WhatsApp"}
+              </p>
+              <p className="flex items-center gap-2 justify-center">
+                <Mail className="h-3.5 w-3.5 shrink-0 text-primary-foreground/40" />
+                {tema?.email ? (
+                  <a href={`mailto:${tema.email}`} className="hover:text-primary-foreground transition-colors">
+                    {tema.email}
+                  </a>
+                ) : "E-mail"}
+              </p>
+            </div>
+          </div>
+
+          {/* Menu */}
+          <div className="flex flex-col items-center px-8">
+            <span className="mb-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-primary-foreground/40">Navegação</span>
+            <h4 className="mb-5 text-base font-bold text-primary-foreground">Menu</h4>
+            <ul className="space-y-3 text-sm text-primary-foreground/60">
+              <li><Link href="/rewards" className="hover:text-primary-foreground transition-colors">Recompensas</Link></li>
+              <li><Link href="/support" className="hover:text-primary-foreground transition-colors">Contato</Link></li>
+              <li><Link href="/my_account/pedidos" className="hover:text-primary-foreground transition-colors">Meus Pedidos</Link></li>
+              <li><Link href="/my_account/perfil" className="hover:text-primary-foreground transition-colors">Editar Cadastro</Link></li>
+            </ul>
+          </div>
+
+          {/* Políticas + Redes */}
+          <div className="flex flex-col items-center px-8">
+            <span className="mb-1 text-[10px] font-semibold uppercase tracking-[0.25em] text-primary-foreground/40">Legal</span>
+            <h4 className="mb-5 text-base font-bold text-primary-foreground">Nossas Políticas</h4>
+            <ul className="space-y-3 text-sm text-primary-foreground/60">
+              <li><Link href="/regulation" className="hover:text-primary-foreground transition-colors">Regulamento do Programa</Link></li>
+              <li><Link href="/regulation" className="hover:text-primary-foreground transition-colors">Entrega, Devolução e Reembolso</Link></li>
+              <li><Link href="/regulation" className="hover:text-primary-foreground transition-colors">Políticas de Privacidade</Link></li>
+            </ul>
+
+            {socials.length > 0 && (
+              <div className="mt-6">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-primary-foreground/40">Siga-nos</p>
+                <div className="flex gap-2 justify-center">
+                  {socials.map(({ icon: Icon, label, href }) => (
+                    <a
+                      key={label} href={href} target="_blank" rel="noreferrer" aria-label={label}
+                      className="flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200 hover:scale-110 hover:brightness-125"
+                      style={{
+                        background: "color-mix(in srgb, var(--color-primary-foreground) 12%, transparent)",
+                        border: "1px solid color-mix(in srgb, var(--color-primary-foreground) 20%, transparent)",
+                        color: "var(--color-primary-foreground)",
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background =
+                          "color-mix(in srgb, var(--color-primary-foreground) 22%, transparent)";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background =
+                          "color-mix(in srgb, var(--color-primary-foreground) 12%, transparent)";
+                      }}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <div>
-          <h4 className="mb-4 text-lg font-bold text-primary-foreground">Menu</h4>
-          <ul className="space-y-2 text-sm text-primary-foreground/70">
-            <li><Link href="/rewards" className="hover:text-primary-foreground transition-colors">Recompensas</Link></li>
-            <li><Link href="/support" className="hover:text-primary-foreground transition-colors">Contato</Link></li>
-            <li><Link href="/my_account/pedidos" className="hover:text-primary-foreground transition-colors">Meus Pedidos</Link></li>
-            <li><Link href="/my_account/perfil" className="hover:text-primary-foreground transition-colors">Editar cadastro</Link></li>
-          </ul>
+        {/* Bottom bar */}
+        <div
+          className="mt-10 pt-6 text-center text-xs text-primary-foreground/40"
+          style={{
+            borderTop: "1px solid color-mix(in srgb, var(--color-primary-foreground) 12%, transparent)",
+          }}
+        >
+          © {new Date().getFullYear()} Todos os direitos reservados.{" "}
+          Feito com{" "}
+          <span className="text-red-400">❤</span>{" "}
+          por <span className="font-semibold text-primary-foreground/70">Dentelli</span>
         </div>
-
-        <div>
-          <h4 className="mb-4 text-lg font-bold text-primary-foreground">Nossas Políticas</h4>
-          <ul className="space-y-2 text-sm text-primary-foreground/70">
-            <li><Link href="/regulation" className="hover:text-primary-foreground transition-colors">Regulamento do Programa</Link></li>
-            <li><Link href="/regulation" className="hover:text-primary-foreground transition-colors">Entrega, Devolução e Reembolso</Link></li>
-            <li><Link href="/regulation" className="hover:text-primary-foreground transition-colors">Políticas de privacidade</Link></li>
-          </ul>
-
-          {socials.length > 0 && (
-            <>
-              <p className="mt-4 text-sm font-bold text-primary-foreground">Onde nos encontrar:</p>
-              <div className="mt-2 flex gap-3 justify-center">
-                {socials.map(({ icon: Icon, label, href }) => (
-                  <a key={label} href={href} target="_blank" rel="noreferrer" aria-label={label}
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-foreground text-primary hover:bg-primary-foreground/80 transition-colors">
-                    <Icon className="h-4 w-4" />
-                  </a>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-6xl px-4 mt-8 pt-6 border-t border-primary-foreground/20 text-center text-sm text-primary-foreground/70">
-        © Todos os direitos reservados. Feito com <span className="text-primary-foreground">❤</span> por <span className="font-bold text-primary-foreground">Dentelli</span>
       </div>
     </footer>
   );

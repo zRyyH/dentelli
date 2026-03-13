@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { removeAuthCookie, canAccessAdminMenus } from "@/lib/pb";
 import { Search, User, Heart, ShoppingCart, ChevronDown, Trash2, LogOut, Plus, Minus, Menu, X } from "lucide-react";
@@ -40,6 +40,9 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
   const [cartShake, setCartShake] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+
+  const doLogout = useCallback(() => { removeAuthCookie(); router.push("/"); }, [router]);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -285,7 +288,7 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
                 <span className={`text-[10px] font-semibold ${pathname === path ? "text-primary" : "text-muted-foreground/60 group-hover:text-primary"}`}>{label}</span>
               </button>
             ))}
-            <button onClick={() => { removeAuthCookie(); router.push("/"); }}
+            <button onClick={() => setConfirmLogout(true)}
               className="group relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 hover:bg-primary/8 transition-all">
               <LogOut className="h-[18px] w-[18px] text-muted-foreground/70 group-hover:text-primary" />
               <span className="text-[10px] font-semibold text-muted-foreground/60 group-hover:text-primary">Sair</span>
@@ -388,7 +391,7 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
                     {label}
                   </button>
                 ))}
-                <button onClick={() => { removeAuthCookie(); router.push("/"); setMobileMenuOpen(false); }}
+                <button onClick={() => { setConfirmLogout(true); setMobileMenuOpen(false); }}
                   className="flex w-full items-center gap-3 px-5 py-4 text-sm font-semibold text-foreground/70 hover:bg-destructive/5 hover:text-destructive transition-colors">
                   <LogOut className="h-4 w-4" />
                   Sair
@@ -396,6 +399,35 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
               </div>
             </div>
           </nav>
+        </div>
+      )}
+      {/* Confirm logout dialog */}
+      {confirmLogout && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setConfirmLogout(false)} />
+          <div className="relative z-10 w-full max-w-sm mx-4 rounded-xl border border-border bg-card shadow-xl p-6 space-y-4">
+            <div className="flex flex-col items-center text-center gap-2">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+                <LogOut className="h-6 w-6 text-destructive" />
+              </div>
+              <h2 className="text-base font-bold text-card-foreground">Deseja sair?</h2>
+              <p className="text-sm text-muted-foreground">Você será desconectado da sua conta.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmLogout(false)}
+                className="flex-1 h-10 rounded-lg border border-border text-sm font-semibold text-card-foreground hover:bg-muted/40 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={doLogout}
+                className="flex-1 h-10 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:bg-destructive/90 transition-colors"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

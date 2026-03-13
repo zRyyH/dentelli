@@ -42,7 +42,7 @@ export default function ProductDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fafafa]">
+      <div className="min-h-screen bg-background">
         <SiteHeader activeNav="RECOMPENSAS" />
         <main className="mx-auto max-w-6xl px-6 py-12">
           <div className="grid gap-10 lg:grid-cols-2">
@@ -63,7 +63,7 @@ export default function ProductDetailPage() {
 
   if (!product) {
     return (
-      <div className="min-h-screen bg-[#fafafa]">
+      <div className="min-h-screen bg-background">
         <SiteHeader activeNav="RECOMPENSAS" />
         <main className="mx-auto max-w-4xl px-6 py-20 text-center">
           <p className="text-base font-medium">Produto não encontrado.</p>
@@ -81,7 +81,7 @@ export default function ProductDetailPage() {
     .slice(0, 4);
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
+    <div className="min-h-screen bg-background">
       <SiteHeader activeNav="RECOMPENSAS" />
 
       <PageTransition>
@@ -100,7 +100,7 @@ export default function ProductDetailPage() {
         <div className="grid gap-10 lg:grid-cols-2 lg:items-stretch">
           {/* Image */}
           <div className="relative min-h-[400px]">
-            <div className="group absolute inset-0 overflow-hidden rounded-2xl border border-border/40 bg-white shadow-sm cursor-zoom-in"
+            <div className="group absolute inset-0 overflow-hidden rounded-2xl border border-border/40 bg-muted/20 shadow-sm cursor-zoom-in"
               onClick={() => images.length > 0 && setLightboxOpen(true)}>
               {currentImage ? (
                 <img src={currentImage} alt={product.nome} className="absolute inset-0 h-full w-full object-contain transition-transform duration-500 group-hover:scale-[1.03]" />
@@ -127,11 +127,11 @@ export default function ProductDetailPage() {
 
           {/* Product Info */}
           <div className="flex flex-col gap-5">
-            <div className="rounded-2xl border border-border/40 bg-white p-8 shadow-sm">
+            <div className="rounded-2xl border border-border/40 bg-card/60 p-8 shadow-sm" >
               <div className="mb-6 flex items-start justify-between gap-4">
                 <h1 className="text-2xl font-bold leading-snug">{product.nome}</h1>
                 <button onClick={() => toggleWishlist(product.id)} className="mt-1 shrink-0 rounded-full p-1.5 hover:bg-muted transition-colors">
-                  <Heart className={`h-5 w-5 transition-all ${isInWishlist(product.id) ? "fill-primary text-primary" : "text-muted-foreground/35 hover:text-primary"}`} />
+                  <Heart className={`h-5 w-5 transition-all ${isInWishlist(product.id) ? "fill-red-500 text-red-500" : "text-muted-foreground/35 hover:text-primary"}`} />
                 </button>
               </div>
 
@@ -176,7 +176,7 @@ export default function ProductDetailPage() {
 
         {/* Description */}
         {product.descricao && (
-          <div className="mt-6 rounded-2xl border border-border/40 bg-white p-6 shadow-sm">
+          <div className="mt-6 rounded-2xl border border-border/40 p-6 shadow-sm" >
             <h2 className="mb-4 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/50">Descrição</h2>
             <div className="text-sm text-muted-foreground leading-relaxed prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: product.descricao }} />
@@ -196,7 +196,7 @@ export default function ProductDetailPage() {
                 const img = getProductImages(r)[0] || "";
                 return (
                   <Link key={r.id} href={`/produto/${r.id}`}
-                    className="group rounded-2xl border border-border/40 bg-white p-3 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all">
+                    className="group rounded-2xl border border-border/40 p-3 shadow-sm hover:-translate-y-0.5 hover:shadow-md transition-all" >
                     <div className="mb-3 w-full overflow-hidden rounded-xl bg-muted/25 aspect-square">
                       {img ? <img src={img} alt={r.nome} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300" />
                         : <div className="flex h-full w-full items-center justify-center"><span className="text-4xl opacity-20">🎁</span></div>}

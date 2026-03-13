@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, Plus, Heart } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext, type CarouselApi } from "@/components/ui/carousel";
 import Autoplay from "embla-carousel-autoplay";
@@ -11,38 +11,12 @@ import { SiteHeader } from "@/components/header";
 import { SiteFooter } from "@/components/footer";
 import { FloatingButtons } from "@/components/floating-buttons";
 import { PageTransition } from "@/components/page-transition";
+import { ProductCard } from "@/components/product-card";
 import { useTheme } from "@/hooks/use-theme";
 import { useProducts, getProductImageUrl } from "@/hooks/use-products";
-import { useWishlist } from "@/hooks/use-wishlist";
 import { useCategorias } from "@/hooks/use-admin-data";
 import { PB_BASE_URL } from "@/lib/pb";
 import type { Product } from "@/lib/types";
-
-function ProductCard({ product }: { product: Product }) {
-  const router = useRouter();
-  const { isInWishlist, toggleWishlist } = useWishlist();
-  const imgUrl = getProductImageUrl(product);
-  const wishlisted = isInWishlist(product.id);
-  return (
-    <div className="group rounded-xl border-2 border-border bg-card p-4 shadow-sm hover:shadow-md hover:border-primary transition-all h-full">
-      <div className="mb-4 flex h-48 items-center justify-center rounded-lg bg-muted overflow-hidden cursor-pointer"
-        onClick={() => router.push(`/produto/${product.id}`)}>
-        {imgUrl ? <img src={imgUrl} alt={product.nome} className="h-full w-full object-cover" /> : <span className="text-5xl">🎁</span>}
-      </div>
-      <h3 className="mb-1 text-sm font-medium">{product.nome}</h3>
-      <p className="mb-4 text-lg font-bold text-primary">{product.pontos.toLocaleString("pt-BR")} Pontos</p>
-      <div className="flex items-center gap-2">
-        <Button onClick={() => router.push(`/produto/${product.id}`)} className="flex-1 rounded-full text-xs font-bold">
-          <Plus className="mr-1 h-3 w-3" /> DETALHES
-        </Button>
-        <button onClick={() => toggleWishlist(product.id)}
-          className={`flex h-9 w-9 items-center justify-center rounded-full border border-border transition-colors ${wishlisted ? "text-primary bg-primary/10" : "text-primary hover:bg-primary/10"}`}>
-          <Heart className={`h-4 w-4 ${wishlisted ? "fill-primary" : ""}`} />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 function CarouselWithDots({ products }: { products: Product[] }) {
   const [api, setApi] = useState<CarouselApi>();

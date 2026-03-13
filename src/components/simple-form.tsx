@@ -16,11 +16,11 @@ export function SimpleForm({ title, children }: { title: string; children: React
   }, [router]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col" style={{ background: "hsl(220 18% 91%)" }}>
       <SiteHeader activeNav="CADASTRAR" />
       <PageTransition>
         <main className="flex-1 flex items-start justify-center py-12 px-4">
-          <div className="w-full max-w-4xl rounded-2xl border border-border bg-card p-8 shadow-sm space-y-6">
+          <div className="w-full max-w-4xl rounded-2xl border border-border p-8 shadow-sm space-y-6" style={{ background: "hsl(220 14% 96%)" }}>
             <h1 className="text-xs font-bold uppercase tracking-[0.25em] text-muted-foreground">{title}</h1>
             {children}
           </div>

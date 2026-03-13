@@ -43,8 +43,8 @@ export function ProductCard({ product, wishlistOnly = false }: ProductCardProps)
           </Button>
         )}
         <button onClick={() => toggleWishlist(product.id)}
-          className={`flex h-9 w-9 items-center justify-center rounded-full border border-border transition-colors ${wishlisted ? "text-primary bg-primary/10" : "text-primary hover:bg-primary/10"}`}>
-          <Heart className={`h-4 w-4 ${wishlisted ? "fill-primary" : ""}`} />
+          className={`flex h-9 w-9 items-center justify-center rounded-full border border-border transition-colors ${wishlisted ? "text-red-500 bg-red-50" : "text-primary hover:bg-primary/10"}`}>
+          <Heart className={`h-4 w-4 ${wishlisted ? "fill-red-500" : ""}`} />
         </button>
       </div>
     </div>

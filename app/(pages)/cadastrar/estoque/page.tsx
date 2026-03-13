@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleForm } from "@/components/simple-form";
 import { BatchQueue } from "@/components/batch-queue";
 import { BatchToggle } from "@/components/batch-toggle";
+import { SearchSelect } from "@/components/search-select";
 import { useUnidades, useEstoques, useProdutosAdmin } from "@/hooks/use-admin-data";
 import { useBatch } from "@/hooks/use-batch";
 import { formatCurrency } from "@/lib/formatters";
@@ -83,6 +83,9 @@ export default function EstoquePage() {
     ? produtos.filter((p) => estoques.some((e) => e.produto_id === p.id && e.quantidade > 0))
     : produtos;
 
+  const unidadeOptions = useMemo(() => unidades.map((u) => ({ id: u.id, label: u.nome })), [unidades]);
+  const produtoOptions = useMemo(() => produtosDisponiveis.map((p) => ({ id: p.id, label: p.nome })), [produtosDisponiveis]);
+
   const buildBody = (item: BatchEstoque) => {
     const body: any = { tipo: item.tipo, unidade: item.unidadeId, produto: item.produtoId, quantidade: item.quantidade };
     if (item.tipo === "ENTRADA") {
@@ -95,9 +98,18 @@ export default function EstoquePage() {
     return body;
   };
 
+  const isFormValid = (() => {
+    if (!unidadeId || !produtoId) return false;
+    if (!quantidade || parseInt(quantidade) < 1) return false;
+    if (tipoFluxo === "ENTRADA" && !nomeLote.trim()) return false;
+    return true;
+  })();
+
   const handleSubmit = async () => {
     if (!unidadeId) { toast.error("Selecione uma unidade"); return; }
     if (!produtoId) { toast.error("Selecione um produto"); return; }
+    if (!quantidade || parseInt(quantidade) < 1) { toast.error("Informe uma quantidade válida"); return; }
+    if (tipoFluxo === "ENTRADA" && !nomeLote.trim()) { toast.error("Informe o nome do lote"); return; }
 
     setSubmitting(true);
     try {
@@ -122,6 +134,8 @@ export default function EstoquePage() {
   const addToBatch = () => {
     if (!unidadeId) { toast.error("Selecione uma unidade"); return; }
     if (!produtoId) { toast.error("Selecione um produto"); return; }
+    if (!quantidade || parseInt(quantidade) < 1) { toast.error("Informe uma quantidade válida"); return; }
+    if (tipoFluxo === "ENTRADA" && !nomeLote.trim()) { toast.error("Informe o nome do lote"); return; }
     batch.add({
       tipo: tipoFluxo,
       unidadeId, unidadeNome: unidades.find((u) => u.id === unidadeId)?.nome || "",
@@ -179,12 +193,9 @@ export default function EstoquePage() {
 
       <hr className="border-border" />
 
-      <div>
+      <div className="max-w-xs">
         <label className={lbl}>Unidade <span className="text-destructive">*</span></label>
-        <Select value={unidadeId} onValueChange={setUnidadeId} items={Object.fromEntries(unidades.map((u) => [u.id, u.nome]))}>
-          <SelectTrigger className="bg-card text-card-foreground max-w-xs h-9"><SelectValue placeholder="Selecione uma unidade" /></SelectTrigger>
-          <SelectContent>{unidades.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-        </Select>
+        <SearchSelect value={unidadeId} onChange={setUnidadeId} options={unidadeOptions} placeholder="Selecione uma unidade" />
       </div>
 
       <hr className="border-border" />
@@ -198,10 +209,7 @@ export default function EstoquePage() {
             </div>
             <div>
               <label className={lbl}>Produto <span className="text-destructive">*</span></label>
-              <Select value={produtoId} onValueChange={setProdutoId} items={Object.fromEntries(produtosDisponiveis.map((p) => [p.id, p.nome]))}>
-                <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma opção" /></SelectTrigger>
-                <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchSelect value={produtoId} onChange={setProdutoId} options={produtoOptions} placeholder="Selecione uma opção" />
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -224,10 +232,7 @@ export default function EstoquePage() {
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <label className={lbl}>Produto <span className="text-destructive">*</span></label>
-              <Select value={produtoId} onValueChange={setProdutoId} items={Object.fromEntries(produtosDisponiveis.map((p) => [p.id, p.nome]))}>
-                <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
-                <SelectContent>{produtosDisponiveis.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchSelect value={produtoId} onChange={setProdutoId} options={produtoOptions} placeholder="Selecione um produto" />
             </div>
             <div className="w-24">
               <label className={lbl}>Quantidade</label>
@@ -251,11 +256,11 @@ export default function EstoquePage() {
         {batchMode ? (
           <Button type="button" variant="outline"
             className="px-14 py-3 text-base font-bold tracking-wide border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-            onClick={addToBatch}>
+            onClick={addToBatch} disabled={!isFormValid}>
             <Plus className="h-4 w-4 mr-2" /> ADICIONAR AO LOTE
           </Button>
         ) : (
-          <Button className="px-14 py-3 text-base font-bold tracking-wide" onClick={handleSubmit} disabled={submitting}>
+          <Button className="px-14 py-3 text-base font-bold tracking-wide" onClick={handleSubmit} disabled={submitting || !isFormValid}>
             {submitting ? "ENVIANDO..." : tipoFluxo === "ENTRADA" ? "CADASTRAR ENTRADA" : "CADASTRAR SAÍDA"}
           </Button>
         )}

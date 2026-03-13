@@ -322,6 +322,28 @@ export default function CentralPage() {
               <Input value={pontosItem} readOnly className={`${inp} cursor-not-allowed`} />
             </div>
           </div>
+          {pedidoId && (() => {
+            const pedidoSel = pedidos.find((p) => p.id === pedidoId);
+            const itens: any[] = (pedidoSel as any)?.itens ?? [];
+            if (!itens.length) return null;
+            return (
+              <div className="rounded-lg border border-border overflow-hidden">
+                <div className="px-3 py-2 bg-muted/40 border-b border-border">
+                  <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    Itens do pedido — {itens.length} {itens.length === 1 ? "produto" : "produtos"}
+                  </span>
+                </div>
+                {itens.map((it, idx) => (
+                  <div key={it.id} className="flex items-center gap-2 px-3 py-2 border-b border-border last:border-0 text-sm">
+                    <span className="text-xs font-bold text-muted-foreground w-5 shrink-0">{idx + 1}</span>
+                    <span className="flex-1 truncate text-card-foreground font-medium">{it.produtoNome}</span>
+                    <span className="text-xs text-muted-foreground">× {it.quantidade}</span>
+                    <span className="text-xs font-bold text-primary shrink-0">{(it.pontos * it.quantidade).toLocaleString("pt-BR")} pts</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
           <div>
             <label className={lbl}>Observação</label>
             <Input value={observacaoDebito} onChange={(e) => setObservacaoDebito(e.target.value)} className={inp} />

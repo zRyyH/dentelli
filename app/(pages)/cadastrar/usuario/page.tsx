@@ -1,6 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+function useMaskedInput(formatter: (v: string) => string) {
+  const ref = useRef<HTMLInputElement>(null);
+  const onChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const cursor = input.selectionStart ?? input.value.length;
+    const digitsBeforeCursor = input.value.slice(0, cursor).replace(/\D/g, "").length;
+    const formatted = formatter(input.value);
+    // React controlled input: we need to manually update the DOM value and dispatch change
+    // so that React's state update applies. We do this via the setter returned separately.
+    requestAnimationFrame(() => {
+      if (!ref.current) return;
+      let count = 0;
+      let pos = formatted.length;
+      for (let i = 0; i < formatted.length; i++) {
+        if (count >= digitsBeforeCursor) { pos = i; break; }
+        if (/\d/.test(formatted[i])) count++;
+      }
+      ref.current.setSelectionRange(pos, pos);
+    });
+    return formatted;
+  };
+  return { ref, onChange };
+}
 import { Eye, EyeOff, Plus } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -14,7 +38,7 @@ import { BatchQueue } from "@/components/batch-queue";
 import { BatchToggle } from "@/components/batch-toggle";
 import { useUnidades, useEmbaixadores, useColetores, useTipoOptions } from "@/hooks/use-admin-data";
 import { useBatch } from "@/hooks/use-batch";
-import { formatCpf, formatDate, parseDateToISO } from "@/lib/formatters";
+import { formatCpf, formatDate, formatTelefone, parseDateToISO, validateCpf, validateEmail, validateNascimento, validateTelefone } from "@/lib/formatters";
 
 async function apiPost(path: string, body: object, method = "POST") {
   const res = await fetch(path, {
@@ -93,6 +117,9 @@ export default function UsuarioPage() {
   const [batchMode, setBatchMode] = useState(false);
 
   const batch = useBatch<BatchUsuario>();
+  const telefoneInput = useMaskedInput(formatTelefone);
+  const cpfInput = useMaskedInput(formatCpf);
+  const nascimentoInput = useMaskedInput(formatDate);
 
   useEffect(() => {
     fetch("/api/admin/nivel-iniciante")
@@ -141,20 +168,22 @@ export default function UsuarioPage() {
     setSubmitting(true);
     try {
       const unidade = unidades.find((u) => u.id === unidadeId) ?? { id: unidadeId };
+      const telefoneDigits = telefone.replace(/\D/g, "");
+      const cpfDigits = cpf.replace(/\D/g, "");
       if (modo === "cadastrar") {
         await apiPost("/api/admin/usuario", {
           unidadeId, nome, email, senha, prontuario, tipo, sexo,
-          telefone, nascimento: nascimento ? parseDateToISO(nascimento) : undefined,
-          cpf, observacao, isAdministrador, isColetor, isEmbaixador,
+          telefone: telefoneDigits, nascimento: nascimento ? parseDateToISO(nascimento) : undefined,
+          cpf: cpfDigits, observacao, isAdministrador, isColetor, isEmbaixador,
           nivelInicianteId, unidade,
         });
         toast.success("Usuário cadastrado com sucesso!");
         resetForm();
       } else {
         await apiPost(`/api/admin/usuario/${usuarioId}`, {
-          unidadeId, nome, prontuario, tipo, sexo, telefone,
+          unidadeId, nome, prontuario, tipo, sexo, telefone: telefoneDigits,
           nascimento: nascimento ? parseDateToISO(nascimento) : undefined,
-          cpf, observacao, email, senha,
+          cpf: cpfDigits, observacao, email, senha,
           isAdministrador, isColetor, isEmbaixador, unidade,
         }, "PATCH");
         toast.success("Usuário atualizado com sucesso!");
@@ -170,7 +199,9 @@ export default function UsuarioPage() {
     if (!unidadeId || !nome || !email || !senha || !hasAtLeastOneRole) { toast.error("Preencha todos os campos obrigatórios"); return; }
     batch.add({
       unidadeId, unidadeNome: unidades.find((u) => u.id === unidadeId)?.nome || "",
-      nome, email, prontuario, tipo, sexo, telefone, nascimento, cpf, observacao, senha,
+      nome, email, prontuario, tipo, sexo,
+      telefone: telefone.replace(/\D/g, ""),
+      nascimento, cpf: cpf.replace(/\D/g, ""), observacao, senha,
       isAdministrador, isColetor, isEmbaixador,
     });
     resetForm(); setUnidadeId("");
@@ -182,9 +213,10 @@ export default function UsuarioPage() {
       try {
         await apiPost("/api/admin/usuario", {
           unidadeId: item.unidadeId, nome: item.nome, email: item.email, senha: item.senha,
-          prontuario: item.prontuario, tipo: item.tipo, sexo: item.sexo, telefone: item.telefone,
+          prontuario: item.prontuario, tipo: item.tipo, sexo: item.sexo,
+          telefone: item.telefone.replace(/\D/g, ""),
           nascimento: item.nascimento ? parseDateToISO(item.nascimento) : undefined,
-          cpf: item.cpf, observacao: item.observacao,
+          cpf: item.cpf.replace(/\D/g, ""), observacao: item.observacao,
           isAdministrador: item.isAdministrador, isColetor: item.isColetor, isEmbaixador: item.isEmbaixador,
           nivelInicianteId,
           unidade: { id: item.unidadeId, nome: item.unidadeNome },
@@ -298,15 +330,24 @@ export default function UsuarioPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <label className={lbl}>Telefone</label>
-            <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(XX) XXXXX-XXXX" className={inp} />
+            <Input ref={telefoneInput.ref} value={telefone}
+              onChange={(e) => setTelefone(telefoneInput.onChange(e))}
+              placeholder="(XX) XXXXX-XXXX" className={inp} />
+            {telefone && !validateTelefone(telefone) && <p className="text-xs text-destructive mt-1">Telefone inválido</p>}
           </div>
           <div>
             <label className={lbl}>Data de nascimento</label>
-            <Input value={nascimento} onChange={(e) => setNascimento(formatDate(e.target.value))} placeholder="DD/MM/AAAA" className={inp} />
+            <Input ref={nascimentoInput.ref} value={nascimento}
+              onChange={(e) => setNascimento(nascimentoInput.onChange(e))}
+              placeholder="DD/MM/AAAA" className={inp} />
+            {nascimento && !validateNascimento(nascimento) && <p className="text-xs text-destructive mt-1">Data inválida</p>}
           </div>
           <div>
             <label className={lbl}>CPF</label>
-            <Input value={cpf} onChange={(e) => setCpf(formatCpf(e.target.value))} placeholder="XXX.XXX.XXX-XX" className={inp} />
+            <Input ref={cpfInput.ref} value={cpf}
+              onChange={(e) => setCpf(cpfInput.onChange(e))}
+              placeholder="XXX.XXX.XXX-XX" className={inp} />
+            {cpf && !validateCpf(cpf) && <p className="text-xs text-destructive mt-1">CPF inválido</p>}
           </div>
           <div>
             <label className={lbl}>Observação</label>
@@ -318,6 +359,7 @@ export default function UsuarioPage() {
           <div>
             <label className={lbl}>Email <span className="text-destructive">*</span></label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" className={inp} />
+            {email && !validateEmail(email) && <p className="text-xs text-destructive mt-1">Email inválido</p>}
           </div>
           <div>
             <label className={lbl}>Senha {modo === "cadastrar" && <span className="text-destructive">*</span>}</label>
