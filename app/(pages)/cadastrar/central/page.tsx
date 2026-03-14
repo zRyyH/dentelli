@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleForm } from "@/components/simple-form";
@@ -51,13 +50,11 @@ const lbl = "block text-xs font-semibold uppercase tracking-wide text-muted-fore
 const inp = "bg-card text-card-foreground h-9";
 
 export default function CentralPage() {
-  const router = useRouter();
-  const [tipoTransacao, setTipoTransacao] = useState<TipoTransacao>("CREDITO");
+const [tipoTransacao, setTipoTransacao] = useState<TipoTransacao>("CREDITO");
   const [unidadeId, setUnidadeId] = useState("");
   const [embaixadorId, setEmbaixadorId] = useState("");
   const [missaoId, setMissaoId] = useState("");
   const [indicacaoId, setIndicacaoId] = useState("");
-  const [indicacaoSearch, setIndicacaoSearch] = useState("");
   const [observacao, setObservacao] = useState("");
   const [pontos, setPontos] = useState(0);
   const [pedidoId, setPedidoId] = useState("");
@@ -67,46 +64,44 @@ export default function CentralPage() {
   const [batchMode, setBatchMode] = useState(false);
 
   const batch = useBatch<BatchCredito>();
-  const { data: unidades = [] } = useUnidades();
-  const { data: embaixadores = [] } = useEmbaixadores(unidadeId);
+  const { data: todasUnidades = [] } = useUnidades();
+  const { data: embaixadores = [] } = useEmbaixadores(); // todos
   const { data: todasMissoes = [] } = useMissoes();
   const { data: todasIndicacoes = [] } = useIndicacoes();
   const { data: pedidos = [] } = usePedidosPendentes(embaixadorId);
-  const { data: saldoData } = useSaldoEmbaixador(embaixadorId);
+  const { data: saldoData } = useSaldoEmbaixador(embaixadorId, unidadeId || undefined);
+
+  const embaixadorSelecionado = useMemo(() => embaixadores.find((e) => e.id === embaixadorId), [embaixadores, embaixadorId]);
+
+  const unidades = useMemo(() => {
+    if (!embaixadorSelecionado?.unidade) return [];
+    const ids = Array.isArray(embaixadorSelecionado.unidade)
+      ? embaixadorSelecionado.unidade
+      : [embaixadorSelecionado.unidade];
+    return todasUnidades.filter((u) => ids.includes(u.id));
+  }, [todasUnidades, embaixadorSelecionado]);
 
   const missoes = useMemo(() => todasMissoes.filter((m) => !m.automatico), [todasMissoes]);
   const missaoSelecionada = useMemo(() => missoes.find((m) => m.id === missaoId), [missaoId, missoes]);
   const missaoCategoria = missaoSelecionada?.categoria ?? "";
-
-  const normalize = (s: string) =>
-    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-  const indicacoesFiltradas = useMemo(() => {
-    const q = normalize(indicacaoSearch);
-    if (!q) return [];
-    return todasIndicacoes.filter(
-      (i) => normalize(i.nome).includes(q) || i.telefone.replace(/\D/g, "").includes(q.replace(/\D/g, ""))
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [todasIndicacoes, indicacaoSearch]);
 
   const saldoPontos = (saldoData?.pendente ?? 0) + (saldoData?.saldo ?? 0);
   const custoDebito = parseFloat(pontosItem) || 0;
   const saldoApos = saldoPontos - custoDebito;
 
   const resetTransacao = () => {
-    setMissaoId(""); setIndicacaoId(""); setIndicacaoSearch(""); setObservacao(""); setPontos(0);
+    setMissaoId(""); setIndicacaoId(""); setObservacao(""); setPontos(0);
     setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
   };
 
   useEffect(() => { resetTransacao(); setBatchMode(false); batch.clear(); }, [tipoTransacao]);
-  useEffect(() => { setEmbaixadorId(""); }, [unidadeId]);
-  useEffect(() => { resetTransacao(); }, [embaixadorId]);
+  useEffect(() => { setUnidadeId(""); resetTransacao(); }, [embaixadorId]);
+  useEffect(() => { resetTransacao(); }, [unidadeId]);
 
   const handleMissaoChange = (id: string) => {
     const missao = missoes.find((m) => m.id === id);
     setMissaoId(id);
-    setIndicacaoId(""); setIndicacaoSearch("");
+    setIndicacaoId("");
     setPontos(missao?.pontos || 0);
   };
 
@@ -132,7 +127,7 @@ export default function CentralPage() {
     try {
       await apiPost("/api/admin/central", {
         tipo: tipoTransacao,
-        embaixadorId, missaoId, indicacaoId, pontos, observacao,
+        embaixadorId, unidadeId, missaoId, indicacaoId, pontos, observacao,
         pedidoId, custoDebito, observacaoDebito,
         saldoPontos,
         embaixador: embaixadores.find((e) => e.id === embaixadorId) ?? { id: embaixadorId },
@@ -143,10 +138,11 @@ export default function CentralPage() {
       if (tipoTransacao === "CREDITO") {
         toast.success("Pontuação registrada com sucesso!");
         resetTransacao();
-        setUnidadeId(""); setEmbaixadorId("");
+        setUnidadeId("");
       } else {
         toast.success("Resgate registrado com sucesso!");
-        router.push("/my_account/pedidos");
+        resetTransacao();
+        setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
       }
     } catch (err: any) {
       toast.error(err.message || "Erro ao processar");
@@ -166,7 +162,7 @@ export default function CentralPage() {
       indicacaoId,
       pontos, observacao,
     });
-    setMissaoId(""); setIndicacaoId(""); setIndicacaoSearch(""); setObservacao(""); setPontos(0);
+    setMissaoId(""); setIndicacaoId(""); setObservacao(""); setPontos(0);
     toast.success("Adicionado ao lote");
   };
 
@@ -176,6 +172,7 @@ export default function CentralPage() {
         await apiPost("/api/admin/central", {
           tipo: "CREDITO",
           embaixadorId: item.embaixadorId,
+          unidadeId: item.unidadeId,
           missaoId: item.missaoId,
           indicacaoId: item.indicacaoId,
           pontos: item.pontos,
@@ -224,18 +221,23 @@ export default function CentralPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className={lbl}>Unidade</label>
-          <Select value={unidadeId} onValueChange={setUnidadeId} items={Object.fromEntries(unidades.map((u) => [u.id, u.nome]))}>
-            <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma unidade" /></SelectTrigger>
-            <SelectContent>{unidades.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-          </Select>
+          <label className={lbl}>Embaixador</label>
+          <SearchSelect
+            value={embaixadorId}
+            onChange={setEmbaixadorId}
+            options={embaixadores.map((e) => ({ id: e.id, label: e.nome, searchText: [(e as any).cpf, (e as any).telefone].filter(Boolean).join(" ") }))}
+            placeholder="Selecione um embaixador"
+          />
         </div>
         <div>
-          <label className={lbl}>Embaixador</label>
-          <Select value={embaixadorId} onValueChange={setEmbaixadorId} disabled={!unidadeId} items={Object.fromEntries(embaixadores.map((e) => [e.id, e.nome]))}>
-            <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um embaixador" /></SelectTrigger>
-            <SelectContent>{embaixadores.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}</SelectContent>
-          </Select>
+          <label className={lbl}>Unidade</label>
+          <SearchSelect
+            value={unidadeId}
+            onChange={setUnidadeId}
+            options={unidades.map((u) => ({ id: u.id, label: u.nome }))}
+            placeholder={!embaixadorId ? "Selecione o embaixador primeiro" : "Selecione uma unidade"}
+            disabled={!embaixadorId || unidades.length === 0}
+          />
         </div>
         <div>
           <label className={lbl}>{tipoTransacao === "CREDITO" ? "Saldo de pontos" : "Pontos disponíveis"}</label>
@@ -250,10 +252,12 @@ export default function CentralPage() {
           <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
             <div>
               <label className={lbl}>Missão</label>
-              <Select value={missaoId} onValueChange={handleMissaoChange} items={Object.fromEntries(missoes.map((m) => [m.id, m.missao]))}>
-                <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma opção" /></SelectTrigger>
-                <SelectContent>{missoes.map((m) => <SelectItem key={m.id} value={m.id}>{m.missao}</SelectItem>)}</SelectContent>
-              </Select>
+              <SearchSelect
+                value={missaoId}
+                onChange={handleMissaoChange}
+                options={missoes.map((m) => ({ id: m.id, label: m.missao, searchText: m.categoria ?? "" }))}
+                placeholder="Selecione uma opção"
+              />
             </div>
             <div>
               <label className={lbl}>Observação</label>
@@ -265,33 +269,18 @@ export default function CentralPage() {
             </div>
           </div>
           {missaoCategoria === "INDICACAO" && (
-            <div className="space-y-2">
+            <div>
               <label className={lbl}>Indicação</label>
-              <Input
-                value={indicacaoSearch}
-                onChange={(e) => { setIndicacaoSearch(e.target.value); setIndicacaoId(""); }}
-                placeholder="Buscar por nome ou telefone..."
-                className={inp}
+              <SearchSelect
+                value={indicacaoId}
+                onChange={setIndicacaoId}
+                options={todasIndicacoes.map((i) => ({
+                  id: i.id,
+                  label: `${i.nome} — ${i.telefone}`,
+                  searchText: `${i.telefone.replace(/\D/g, "")} ${i.relacao}`,
+                }))}
+                placeholder="Buscar por nome, telefone ou relação..."
               />
-              {indicacaoSearch.length > 0 && !indicacaoId && (
-                <div className="border border-border rounded-md bg-card overflow-auto max-h-48">
-                  {indicacoesFiltradas.length === 0 ? (
-                    <p className="text-xs text-muted-foreground p-3">Nenhuma indicação encontrada.</p>
-                  ) : (
-                    indicacoesFiltradas.map((ind) => (
-                      <button
-                        key={ind.id}
-                        type="button"
-                        onClick={() => { setIndicacaoId(ind.id); setIndicacaoSearch(`${ind.nome} — ${ind.telefone}`); }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors ${indicacaoId === ind.id ? "bg-primary/10 font-semibold" : ""}`}
-                      >
-                        <span className="font-medium">{ind.nome}</span>
-                        <span className="text-muted-foreground ml-2 text-xs">{ind.telefone}</span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
             </div>
           )}
         </div>
@@ -300,22 +289,17 @@ export default function CentralPage() {
           <div className="grid grid-cols-[1fr_6rem] gap-4 items-end">
             <div>
               <label className={lbl}>Pedido</label>
-              <Select value={pedidoId} onValueChange={selectPedido} disabled={!embaixadorId} items={Object.fromEntries(pedidos.map((p, idx) => [p.id, `Pedido ${idx + 1} • ${new Date(p.created).toLocaleDateString("pt-BR")}`]))}>
-                <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um pedido" /></SelectTrigger>
-                <SelectContent>
-                  {pedidos.map((p, idx) => (
-                    <SelectItem key={p.id} value={p.id} label={`Pedido ${idx + 1} • ${new Date(p.created).toLocaleDateString("pt-BR")}`}>
-                      <span className="flex items-center w-full gap-2 uppercase text-xs">
-                        <span className="font-bold shrink-0">{idx + 1}.</span>
-                        <span className="shrink-0">ID: {p.id}</span>
-                        <span className="shrink-0">• {p.pontos} PTS</span>
-                        <span className="shrink-0">• {p.item?.length ?? 0} {(p.item?.length ?? 0) === 1 ? "ITEM" : "ITENS"}</span>
-                        <span className="ml-auto shrink-0">{new Date(p.created).toLocaleDateString("pt-BR")}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchSelect
+                value={pedidoId}
+                onChange={selectPedido}
+                options={pedidos.map((p, idx) => ({
+                  id: p.id,
+                  label: `Pedido ${idx + 1} • ${new Date(p.created).toLocaleDateString("pt-BR")} • ${p.pontos} pts • ${p.item?.length ?? 0} ${(p.item?.length ?? 0) === 1 ? "item" : "itens"}`,
+                  searchText: `${p.id} ${p.pontos} ${new Date(p.created).toLocaleDateString("pt-BR")}`,
+                }))}
+                placeholder="Selecione um pedido"
+                disabled={!embaixadorId}
+              />
             </div>
             <div>
               <label className={lbl}>Custo pts</label>

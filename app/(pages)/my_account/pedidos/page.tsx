@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useUnidade } from "@/hooks/use-unidade";
 import { ShoppingBag } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,10 +39,14 @@ export default function PedidosPage() {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const { data: products = [] } = useProducts();
+  const { selectedId: unidadeId, selectedNome, unidades } = useUnidade();
 
   const { data: pedidos = [] } = useQuery<Pedido[]>({
-    queryKey: ["pedidos"],
-    queryFn: () => fetch("/api/pedidos").then((r) => r.ok ? r.json() : []),
+    queryKey: ["pedidos", unidadeId],
+    queryFn: () => {
+      const url = unidadeId ? `/api/pedidos?unidadeId=${unidadeId}` : "/api/pedidos";
+      return fetch(url).then((r) => r.ok ? r.json() : []);
+    },
   });
 
   const handleCancel = async (pedidoId: string) => {
@@ -53,7 +58,7 @@ export default function PedidosPage() {
         throw new Error((data as any).error || "Erro ao cancelar");
       }
       toast.success("Pedido cancelado.");
-      queryClient.invalidateQueries({ queryKey: ["pedidos"] });
+      queryClient.invalidateQueries({ queryKey: ["pedidos", unidadeId] });
     } catch (err: any) {
       toast.error(err.message || "Erro ao cancelar pedido");
     } finally {
@@ -66,6 +71,11 @@ export default function PedidosPage() {
 
   return (
     <AccountLayout>
+      {unidades.length > 1 && selectedNome && (
+        <p className="text-xs text-muted-foreground mb-4">
+          Unidade: <span className="font-semibold text-foreground">{selectedNome}</span>
+        </p>
+      )}
       <div className="mb-8">
         <Input
           placeholder="Buscar por ID..."

@@ -2,11 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { removeAuthCookie, canAccessAdminMenus } from "@/lib/pb";
+import { removeAuthCookie } from "@/lib/pb";
+import { useUser } from "@/hooks/use-user";
 import { Search, User, Heart, ShoppingCart, ChevronDown, Trash2, LogOut, Plus, Minus, Menu, X } from "lucide-react";
 import { useProducts, getProductImageUrl } from "@/hooks/use-products";
 import { useCart } from "@/hooks/use-cart";
 import { useTheme } from "@/hooks/use-theme";
+import { useUnidade } from "@/hooks/use-unidade";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -33,7 +35,8 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
   const { data: products } = useProducts();
   const { items, totalPontos, itemCount, removeFromCart, updateItemQuantity } = useCart();
 
-  const [showAdminMenus, setShowAdminMenus] = useState(false);
+  const { unidades, selectedId, selectedNome, setSelected } = useUnidade();
+  const { isAdmin: showAdminMenus } = useUser();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
@@ -45,10 +48,6 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
   const doLogout = useCallback(() => { removeAuthCookie(); router.push("/"); }, [router]);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setShowAdminMenus(canAccessAdminMenus());
-  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -278,6 +277,35 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
 
           {/* Actions — desktop */}
           <div className="flex shrink-0 items-center gap-0.5">
+            {/* Unidade selector */}
+            {unidades.length > 0 && (
+              unidades.length === 1 ? (
+                <div className="flex flex-col items-center gap-0.5 px-3 py-1.5">
+                  <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wide">{selectedNome}</span>
+                </div>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="group relative flex flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 hover:bg-primary/8 transition-all">
+                    <ChevronDown className="h-[18px] w-[18px] text-muted-foreground/70 group-hover:text-primary" />
+                    <span className="text-[10px] font-semibold text-muted-foreground/60 group-hover:text-primary max-w-[80px] truncate">
+                      {selectedNome ?? "Unidade"}
+                    </span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="z-[60]">
+                    {unidades.map((u) => (
+                      <DropdownMenuItem
+                        key={u.id}
+                        onClick={() => setSelected(u.id)}
+                        className={`cursor-pointer ${u.id === selectedId ? "font-semibold text-primary" : ""}`}
+                      >
+                        {u.nome}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )
+            )}
+
             {[
               { icon: User, label: "Minha Conta", path: "/my_account" },
               { icon: Heart, label: "Desejos", path: "/wishlist" },
@@ -378,6 +406,28 @@ export function SiteHeader({ activeNav }: { activeNav?: string }) {
                   </button>
                 );
               })}
+
+              {/* Unidade selector — mobile */}
+              {unidades.length > 0 && (
+                <div className="border-t-2 border-border">
+                  <p className="px-5 py-3 text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                    Unidade
+                  </p>
+                  {unidades.map((u) => (
+                    <button
+                      key={u.id}
+                      onClick={() => { setSelected(u.id); setMobileMenuOpen(false); }}
+                      className={`flex w-full items-center px-8 py-3 text-sm font-medium transition-colors ${
+                        u.id === selectedId
+                          ? "text-primary bg-primary/5 font-semibold"
+                          : "text-foreground/70 hover:bg-primary/5 hover:text-primary"
+                      }`}
+                    >
+                      {u.nome}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Account links */}
               <div className="flex flex-col divide-y divide-border/50 border-t-2 border-border">

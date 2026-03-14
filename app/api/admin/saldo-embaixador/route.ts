@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { pbFetch, apiError } from "@/lib/pb-server";
 
 export async function GET(request: NextRequest) {
-  const usuarioId = new URL(request.url).searchParams.get("usuarioId");
+  const url = new URL(request.url);
+  const usuarioId = url.searchParams.get("usuarioId");
+  const unidadeId = url.searchParams.get("unidadeId");
   if (!usuarioId) return apiError("usuarioId obrigatório", 400);
 
-  const filter = encodeURIComponent(`usuario='${usuarioId}'`);
+  const filter = encodeURIComponent(
+    unidadeId ? `usuario='${usuarioId}' && unidade='${unidadeId}'` : `usuario='${usuarioId}'`
+  );
   const res = await pbFetch(`/api/collections/saldo/records?filter=${filter}&perPage=1`);
   if (!res.ok) return apiError("Falha ao buscar saldo");
 

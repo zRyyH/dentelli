@@ -6,9 +6,8 @@ export async function GET() {
   if (!res.ok) return apiError("Falha ao buscar schema");
   const schema = await res.json();
 
-  // PocketBase v0.20+ usa "fields", versões anteriores usam "schema"
   const fields: any[] = schema.fields ?? schema.schema ?? [];
-  const field = fields.find((f: any) => f.name === "tipo");
+  const field = fields.find((f: any) => f.name === "sexo");
   const values: string[] = field?.options?.values ?? field?.values ?? [];
 
   return NextResponse.json(values);

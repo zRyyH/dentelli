@@ -16,10 +16,11 @@ export const POST = withWebhook(async (request: NextRequest) => {
   const userId = getUserIdFromToken(token);
   if (!userId) return apiError("Token inválido", 401);
 
-  const { produtoId, pontos, quantidade } = await request.json();
+  const { produtoId, pontos, quantidade, unidadeId } = await request.json();
 
-  // Busca pedido CARRINHO existente
-  const filter = encodeURIComponent(`usuario='${userId}' && status='CARRINHO'`);
+  // Busca pedido CARRINHO existente (filtrado por unidade se informada)
+  const unidadeFilter = unidadeId ? ` && unidade='${unidadeId}'` : "";
+  const filter = encodeURIComponent(`usuario='${userId}' && status='CARRINHO'${unidadeFilter}`);
   const pedidoRes = await pbFetch(`/api/collections/pedido/records?filter=${filter}&perPage=1`);
   const currentPedido = pedidoRes.ok ? (await pedidoRes.json()).items?.[0] || null : null;
 
@@ -64,7 +65,13 @@ export const POST = withWebhook(async (request: NextRequest) => {
     const r = await pbFetch(`/api/collections/pedido/records`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ usuario: userId, item: [itemId], pontos: pontos * quantidade, status: "CARRINHO" }),
+      body: JSON.stringify({
+        usuario: userId,
+        item: [itemId],
+        pontos: pontos * quantidade,
+        status: "CARRINHO",
+        ...(unidadeId ? { unidade: unidadeId } : {}),
+      }),
     });
     if (!r.ok) return apiError("Falha ao criar pedido");
   }

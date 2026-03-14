@@ -14,6 +14,7 @@ import { FloatingButtons } from "@/components/floating-buttons";
 import { PageTransition } from "@/components/page-transition";
 import { useCart } from "@/hooks/use-cart";
 import { useProducts, getProductImageUrl } from "@/hooks/use-products";
+import { useUnidade } from "@/hooks/use-unidade";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -27,16 +28,23 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, totalPontos, isLoading, pedido, updateItemQuantity, removeFromCart } = useCart();
   const { data: products = [] } = useProducts();
+  const { selectedId: unidadeId } = useUnidade();
   const [submitting, setSubmitting] = useState(false);
 
   const { data: estoqueItems = [], isLoading: estoqueLoading } = useQuery<EstoqueItem[]>({
-    queryKey: ["estoque-checkout"],
-    queryFn: () => fetch("/api/admin/estoques").then((r) => r.ok ? r.json() : []),
+    queryKey: ["estoque-checkout", unidadeId],
+    queryFn: () => {
+      const url = unidadeId ? `/api/admin/estoques?unidadeId=${unidadeId}` : "/api/admin/estoques";
+      return fetch(url).then((r) => r.ok ? r.json() : []);
+    },
   });
 
   const { data: saldoData, isLoading: saldoLoading } = useQuery<{ saldo: number }>({
-    queryKey: ["saldo-checkout"],
-    queryFn: () => fetch("/api/saldo").then((r) => r.ok ? r.json() : { saldo: 0 }),
+    queryKey: ["saldo-checkout", unidadeId],
+    queryFn: () => {
+      const url = unidadeId ? `/api/saldo?unidadeId=${unidadeId}` : "/api/saldo";
+      return fetch(url).then((r) => r.ok ? r.json() : { saldo: 0 });
+    },
   });
 
   const pageLoading = isLoading || estoqueLoading || saldoLoading;

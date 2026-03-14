@@ -31,6 +31,42 @@ export async function pbFetch(path: string, options: RequestInit = {}): Promise<
   });
 }
 
+// ── Superuser token (cached in memory per process) ────────────────────────────
+
+let _adminToken: string | null = null;
+let _adminTokenExp = 0;
+
+export async function getAdminToken(): Promise<string> {
+  if (_adminToken && Date.now() < _adminTokenExp) return _adminToken;
+
+  const res = await fetch(`${PB_BASE_URL}/api/collections/_superusers/auth-with-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      identity: process.env.PB_ADMIN_EMAIL,
+      password: process.env.PB_ADMIN_PASSWORD,
+    }),
+  });
+
+  if (!res.ok) throw new Error("Falha ao autenticar superusuário");
+  const data = await res.json();
+  _adminToken = data.token as string;
+  // Renova 5 min antes de expirar (token PB dura 1 dia por padrão)
+  _adminTokenExp = Date.now() + 23 * 60 * 60 * 1000;
+  return _adminToken;
+}
+
+export async function pbAdminFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const token = await getAdminToken();
+  return fetch(`${PB_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      ...options.headers,
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 // ── Response helpers ──────────────────────────────────────────────────────────
 
 export function apiError(message: string, status = 500): NextResponse {

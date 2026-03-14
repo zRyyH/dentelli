@@ -11,7 +11,7 @@ export const POST = withWebhook(async (request: NextRequest) => {
   const body = await request.json();
   const {
     tipo, // "CREDITO" | "DEBITO"
-    embaixadorId, missaoId, indicacaoId, pontos, observacao,
+    embaixadorId, unidadeId, missaoId, indicacaoId, pontos, observacao,
     pedidoId, custoDebito, observacaoDebito,
     saldoPontos,
   } = body;
@@ -35,6 +35,7 @@ export const POST = withWebhook(async (request: NextRequest) => {
         tipo: "CREDITO",
         usuario: embaixadorId,
         usuario_responsavel: adminId,
+        unidade: unidadeId || "",
         valor: pontos,
         saldo: pontos,
         missao: missaoId,
@@ -52,11 +53,7 @@ export const POST = withWebhook(async (request: NextRequest) => {
     const saldoApos = saldoPontos - custoDebito;
     if (saldoApos < 0) return apiError("Saldo insuficiente para este resgate", 400);
 
-    // Buscar unidade do embaixador
-    const embaixadorRes = await pbFetch(`/api/collections/usuario/records/${embaixadorId}`);
-    if (!embaixadorRes.ok) return apiError("Falha ao buscar embaixador");
-    const embaixadorRecord = await embaixadorRes.json();
-    const unidadeId: string = embaixadorRecord.unidade;
+    if (!unidadeId) return apiError("unidadeId obrigatório para débito", 400);
 
     // Buscar pedido para obter os itens
     const pedidoRes = await pbFetch(`/api/collections/pedido/records/${pedidoId}`);
@@ -84,6 +81,7 @@ export const POST = withWebhook(async (request: NextRequest) => {
         tipo: "DEBITO",
         usuario: embaixadorId,
         usuario_responsavel: adminId,
+        unidade: unidadeId,
         pedido: pedidoId,
         valor: custoDebito,
         observacao: observacaoDebito,

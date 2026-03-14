@@ -9,8 +9,6 @@ function useMaskedInput(formatter: (v: string) => string) {
     const cursor = input.selectionStart ?? input.value.length;
     const digitsBeforeCursor = input.value.slice(0, cursor).replace(/\D/g, "").length;
     const formatted = formatter(input.value);
-    // React controlled input: we need to manually update the DOM value and dispatch change
-    // so that React's state update applies. We do this via the setter returned separately.
     requestAnimationFrame(() => {
       if (!ref.current) return;
       let count = 0;
@@ -25,8 +23,8 @@ function useMaskedInput(formatter: (v: string) => string) {
   };
   return { ref, onChange };
 }
-import { Eye, EyeOff, Plus } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+import { Eye, EyeOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -34,11 +32,12 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleForm } from "@/components/simple-form";
-import { BatchQueue } from "@/components/batch-queue";
-import { BatchToggle } from "@/components/batch-toggle";
-import { useUnidades, useEmbaixadores, useColetores, useTipoOptions } from "@/hooks/use-admin-data";
-import { useBatch } from "@/hooks/use-batch";
+import { SearchSelect } from "@/components/search-select";
+import { useUnidades, useEmbaixadores, useColetores, useTipoOptions, useSexoOptions } from "@/hooks/use-admin-data";
+import { useUser } from "@/hooks/use-user";
 import { formatCpf, formatDate, formatTelefone, parseDateToISO, validateCpf, validateEmail, validateNascimento, validateTelefone } from "@/lib/formatters";
+import { toast } from "sonner";
+import { parsePbErrors } from "@/lib/pb-errors";
 
 async function apiPost(path: string, body: object, method = "POST") {
   const res = await fetch(path, {
@@ -47,31 +46,12 @@ async function apiPost(path: string, body: object, method = "POST") {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error((data as any).error || "Erro na requisição");
+    const json = await res.json().catch(() => ({}));
+    const err = new Error((json as any).error || "Erro na requisição") as any;
+    err.pbData = (json as any).data;
+    throw err;
   }
   return res.json();
-}
-import { toast } from "sonner";
-
-interface BatchUsuario {
-  _id: string;
-  unidadeId: string;
-  unidadeNome: string;
-  nome: string;
-  email: string;
-  prontuario: string;
-  tipo: string;
-  sexo: string;
-  telefone: string;
-  nascimento: string;
-  cpf: string;
-  observacao: string;
-  senha: string;
-  isAdministrador: boolean;
-  isColetor: boolean;
-  isEmbaixador: boolean;
-  status?: "pending" | "success" | "error";
 }
 
 type Modo = "cadastrar" | "editar";
@@ -80,8 +60,11 @@ const lbl = "block text-xs font-semibold uppercase tracking-wide text-muted-fore
 const inp = "bg-card text-card-foreground h-9";
 
 export default function UsuarioPage() {
-  const { data: unidades = [] } = useUnidades();
-  const { data: tipoOptions = [] } = useTipoOptions();
+  const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
+  const { data: tipoOptions = [], isLoading: loadingTipo } = useTipoOptions();
+  const { data: sexoOptions = [], isLoading: loadingSexo } = useSexoOptions();
+  const { isDono: userIsDono, isLoading: loadingUser } = useUser();
+  const [nivelLoaded, setNivelLoaded] = useState(false);
 
   const [modo, setModo] = useState<Modo>("cadastrar");
   const [unidadeId, setUnidadeId] = useState("");
@@ -90,6 +73,7 @@ export default function UsuarioPage() {
   const [isColetor, setIsColetor] = useState(false);
   const [isEmbaixador, setIsEmbaixador] = useState(false);
   const hasAtLeastOneRole = isAdministrador || isColetor || isEmbaixador;
+  const requireAllFields = isEmbaixador;
 
   const { data: embaixadores = [] } = useEmbaixadores(unidadeId || undefined);
   const { data: coletores = [] } = useColetores(unidadeId || undefined);
@@ -104,7 +88,7 @@ export default function UsuarioPage() {
   const [nivelInicianteId, setNivelInicianteId] = useState("");
   const [nome, setNome] = useState("");
   const [prontuario, setProntuario] = useState("");
-  const [tipo, setTipo] = useState("PACIENTE");
+  const [tipo, setTipo] = useState("");
   const [sexo, setSexo] = useState("");
   const [telefone, setTelefone] = useState("");
   const [nascimento, setNascimento] = useState("");
@@ -114,9 +98,19 @@ export default function UsuarioPage() {
   const [senha, setSenha] = useState("");
   const [showSenha, setShowSenha] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [batchMode, setBatchMode] = useState(false);
 
-  const batch = useBatch<BatchUsuario>();
+  const canSubmit = (() => {
+    if (!unidadeId || !nome || !email || !telefone || !hasAtLeastOneRole) return false;
+    if (!validateEmail(email) || !validateTelefone(telefone)) return false;
+    if (modo === "cadastrar" && !senha) return false;
+    if (modo === "editar" && !usuarioId) return false;
+    if (requireAllFields) {
+      if (!prontuario || !tipo || !sexo || !nascimento || !cpf) return false;
+      if (!validateNascimento(nascimento) || !validateCpf(cpf)) return false;
+    }
+    return true;
+  })();
+
   const telefoneInput = useMaskedInput(formatTelefone);
   const cpfInput = useMaskedInput(formatCpf);
   const nascimentoInput = useMaskedInput(formatDate);
@@ -125,17 +119,18 @@ export default function UsuarioPage() {
     fetch("/api/admin/nivel-iniciante")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) setNivelInicianteId(data.id || ""); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setNivelLoaded(true));
   }, []);
 
   const resetForm = () => {
-    setNome(""); setProntuario(""); setTipo("PACIENTE"); setSexo("");
+    setNome(""); setProntuario(""); setTipo(""); setSexo("");
     setTelefone(""); setNascimento(""); setCpf(""); setObservacao("");
     setEmail(""); setSenha(""); setUsuarioId("");
     setIsAdministrador(false); setIsColetor(false); setIsEmbaixador(false);
   };
 
-  useEffect(() => { resetForm(); setUnidadeId(""); setBatchMode(false); batch.clear(); }, [modo]);
+  useEffect(() => { resetForm(); setUnidadeId(""); }, [modo]);
   useEffect(() => { setUsuarioId(""); }, [unidadeId]);
 
   useEffect(() => {
@@ -145,8 +140,8 @@ export default function UsuarioPage() {
       .then((data) => {
         if (!data) return;
         setNome(data.nome || ""); setProntuario(data.prontuario || ""); setTipo(data.tipo || "");
-        setSexo(data.sexo === "M" ? "M" : data.sexo === "F" ? "F" : "");
-        setTelefone(data.telefone || ""); setCpf(data.cpf ? formatCpf(data.cpf) : "");
+        setSexo(data.sexo || "");
+        setTelefone(data.telefone ? formatTelefone(data.telefone) : ""); setCpf(data.cpf ? formatCpf(data.cpf) : "");
         setObservacao(data.observacao || ""); setEmail(data.email || ""); setSenha("");
         setIsAdministrador(!!data.administrador); setIsColetor(!!data.coletor); setIsEmbaixador(!!data.embaixador);
         if (data.nascimento) {
@@ -157,103 +152,80 @@ export default function UsuarioPage() {
       .catch((e: any) => toast.error(e.message || "Erro ao carregar dados"));
   }, [usuarioId, modo]);
 
-
   const handleSubmit = async () => {
     if (!unidadeId) { toast.error("Selecione uma unidade"); return; }
     if (!nome) { toast.error("Informe o nome"); return; }
-    if (!email || (!senha && modo === "cadastrar")) { toast.error("Informe email e senha"); return; }
+    if (!email) { toast.error("Informe o email"); return; }
+    if (!telefone) { toast.error("Informe o telefone"); return; }
+    if (!senha && modo === "cadastrar") { toast.error("Informe a senha"); return; }
     if (modo === "editar" && !usuarioId) { toast.error("Selecione um usuário"); return; }
     if (!hasAtLeastOneRole) { toast.error("Pelo menos uma função deve estar ativa"); return; }
+    if (requireAllFields) {
+      if (!prontuario) { toast.error("Informe o prontuário"); return; }
+      if (!tipo) { toast.error("Informe o tipo"); return; }
+      if (!sexo) { toast.error("Informe o sexo"); return; }
+      if (!nascimento) { toast.error("Informe a data de nascimento"); return; }
+      if (!cpf) { toast.error("Informe o CPF"); return; }
+    }
 
     setSubmitting(true);
     try {
       const unidade = unidades.find((u) => u.id === unidadeId) ?? { id: unidadeId };
       const telefoneDigits = telefone.replace(/\D/g, "");
-      const cpfDigits = cpf.replace(/\D/g, "");
+      const baseFields = {
+        unidadeId, nome, email, telefone: telefoneDigits,
+        isAdministrador, isColetor, isEmbaixador, unidade,
+      };
+      const extraFields = requireAllFields ? {
+        prontuario, tipo, sexo, cpf: cpf.replace(/\D/g, ""), observacao,
+        nascimento: nascimento ? parseDateToISO(nascimento) : undefined,
+      } : {};
       if (modo === "cadastrar") {
         await apiPost("/api/admin/usuario", {
-          unidadeId, nome, email, senha, prontuario, tipo, sexo,
-          telefone: telefoneDigits, nascimento: nascimento ? parseDateToISO(nascimento) : undefined,
-          cpf: cpfDigits, observacao, isAdministrador, isColetor, isEmbaixador,
-          nivelInicianteId, unidade,
+          ...baseFields, ...extraFields, senha, nivelInicianteId,
         });
         toast.success("Usuário cadastrado com sucesso!");
         resetForm();
       } else {
         await apiPost(`/api/admin/usuario/${usuarioId}`, {
-          unidadeId, nome, prontuario, tipo, sexo, telefone: telefoneDigits,
-          nascimento: nascimento ? parseDateToISO(nascimento) : undefined,
-          cpf: cpfDigits, observacao, email, senha,
-          isAdministrador, isColetor, isEmbaixador, unidade,
+          ...baseFields, ...extraFields, senha,
         }, "PATCH");
         toast.success("Usuário atualizado com sucesso!");
       }
     } catch (err: any) {
-      toast.error(err.message || "Erro ao processar");
+      const fieldErrors = parsePbErrors(err.pbData);
+      if (fieldErrors.length > 0) {
+        fieldErrors.forEach((msg) => toast.error(msg));
+      } else {
+        toast.error(err.message || "Erro ao processar");
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const addToBatch = () => {
-    if (!unidadeId || !nome || !email || !senha || !hasAtLeastOneRole) { toast.error("Preencha todos os campos obrigatórios"); return; }
-    batch.add({
-      unidadeId, unidadeNome: unidades.find((u) => u.id === unidadeId)?.nome || "",
-      nome, email, prontuario, tipo, sexo,
-      telefone: telefone.replace(/\D/g, ""),
-      nascimento, cpf: cpf.replace(/\D/g, ""), observacao, senha,
-      isAdministrador, isColetor, isEmbaixador,
-    });
-    resetForm(); setUnidadeId("");
-    toast.success("Usuário adicionado ao lote");
-  };
+  const isLoading = loadingUnidades || loadingTipo || loadingSexo || !nivelLoaded || loadingUser;
 
-  const submitBatch = async () => {
-    const result = await batch.run(async (item) => {
-      try {
-        await apiPost("/api/admin/usuario", {
-          unidadeId: item.unidadeId, nome: item.nome, email: item.email, senha: item.senha,
-          prontuario: item.prontuario, tipo: item.tipo, sexo: item.sexo,
-          telefone: item.telefone.replace(/\D/g, ""),
-          nascimento: item.nascimento ? parseDateToISO(item.nascimento) : undefined,
-          cpf: item.cpf.replace(/\D/g, ""), observacao: item.observacao,
-          isAdministrador: item.isAdministrador, isColetor: item.isColetor, isEmbaixador: item.isEmbaixador,
-          nivelInicianteId,
-          unidade: { id: item.unidadeId, nome: item.unidadeNome },
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    });
-    if (!result) return;
-    if (result.errors === 0) {
-      toast.success(`${result.total} usuário(s) cadastrado(s) com sucesso!`);
-      batch.clear();
-    } else {
-      toast.error(`${result.errors} de ${result.total} item(s) falharam.`);
-      batch.clearSuccesses();
-    }
-  };
+  if (isLoading) {
+    return (
+      <SimpleForm title="USUÁRIO">
+        <div className="flex items-center justify-center py-24">
+          <div className="h-7 w-7 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </SimpleForm>
+    );
+  }
 
   return (
     <SimpleForm title="USUÁRIO">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
-        <div className="flex-1">
-          <label className={lbl}>Ação</label>
-          <Tabs value={modo} onValueChange={(v) => setModo(v as Modo)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="cadastrar" className="flex-1">CADASTRAR</TabsTrigger>
-              <TabsTrigger value="editar" className="flex-1">EDITAR</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-        {modo === "cadastrar" && (
-          <div className="pb-0.5">
-            <BatchToggle id="sw-batch" checked={batchMode}
-              onCheckedChange={(v) => { setBatchMode(v); if (!v) batch.clear(); }} />
-          </div>
-        )}
+      <div>
+        <label className={lbl}>Ação</label>
+        <Tabs value={modo} onValueChange={(v) => setModo(v as Modo)}>
+          <TabsList className="w-full">
+            <TabsTrigger value="cadastrar" className="flex-1">CADASTRAR</TabsTrigger>
+            <TabsTrigger value="editar" className="flex-1">EDITAR</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
       <hr className="border-border" />
@@ -261,18 +233,27 @@ export default function UsuarioPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className={lbl}>Unidade <span className="text-destructive">*</span></label>
-          <Select value={unidadeId} onValueChange={setUnidadeId} items={Object.fromEntries(unidades.map((u) => [u.id, u.nome]))}>
-            <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione uma unidade" /></SelectTrigger>
-            <SelectContent>{unidades.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-          </Select>
+          <SearchSelect
+            value={unidadeId}
+            onChange={setUnidadeId}
+            options={unidades.map((u) => ({ id: u.id, label: u.nome }))}
+            placeholder="Selecione uma unidade"
+          />
         </div>
         {modo === "editar" && (
           <div>
             <label className={lbl}>Usuário</label>
-            <Select value={usuarioId} onValueChange={setUsuarioId} disabled={!unidadeId} items={Object.fromEntries(allUsuarios.map((u) => [u.id, u.nome]))}>
-              <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione um usuário" /></SelectTrigger>
-              <SelectContent>{allUsuarios.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}</SelectContent>
-            </Select>
+            <SearchSelect
+              value={usuarioId}
+              onChange={setUsuarioId}
+              options={allUsuarios.map((u) => ({
+                id: u.id,
+                label: u.nome,
+                searchText: [u.email, u.cpf, u.telefone, (u as any).prontuario].filter(Boolean).join(" "),
+              }))}
+              placeholder="Selecione um usuário"
+              disabled={!unidadeId}
+            />
           </div>
         )}
       </div>
@@ -284,83 +265,88 @@ export default function UsuarioPage() {
           <label className={lbl}>Funções <span className="text-destructive">*</span></label>
           <div className="flex flex-wrap gap-6 mt-1">
             {[
-              { id: "sw-admin", checked: isAdministrador, onChange: setIsAdministrador, label: "Administrador" },
-              { id: "sw-coletor", checked: isColetor, onChange: setIsColetor, label: "Coletor" },
-              { id: "sw-embaixador", checked: isEmbaixador, onChange: setIsEmbaixador, label: "Embaixador" },
-            ].map(({ id, checked, onChange, label: lbTxt }) => (
+              { id: "sw-admin", checked: isAdministrador, onChange: setIsAdministrador, label: "Administrador", donoOnly: true },
+              { id: "sw-coletor", checked: isColetor, onChange: setIsColetor, label: "Coletor", donoOnly: false },
+              { id: "sw-embaixador", checked: isEmbaixador, onChange: setIsEmbaixador, label: "Embaixador", donoOnly: false },
+            ].filter((f) => !f.donoOnly || userIsDono).map(({ id, checked, onChange, label: lbTxt }) => (
               <div key={id} className="flex items-center gap-2">
                 <Switch id={id} checked={checked} onCheckedChange={onChange} />
                 <Label htmlFor={id} className="text-sm cursor-pointer">{lbTxt}</Label>
               </div>
             ))}
           </div>
-          {!hasAtLeastOneRole && <p className="text-xs text-destructive mt-1.5">Pelo menos uma função deve estar ativa.</p>}
+          <p className={`text-xs text-destructive mt-1.5 ${hasAtLeastOneRole ? "invisible" : ""}`}>Pelo menos uma função deve estar ativa.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={lbl}>Nome <span className="text-destructive">*</span></label>
             <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" className={inp} />
           </div>
           <div>
-            <label className={lbl}>Prontuário</label>
-            <Input value={prontuario} onChange={(e) => setProntuario(e.target.value)} className={inp} />
-          </div>
-          <div>
-            <label className={lbl}>Tipo</label>
-            <Select value={tipo} onValueChange={setTipo} items={Object.fromEntries([...new Set(["PACIENTE", ...tipoOptions])].map((opt) => [opt, opt]))}>
-              <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {[...new Set(["PACIENTE", ...tipoOptions])].map((opt) => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className={lbl}>Sexo</label>
-            <Select value={sexo} onValueChange={setSexo} items={{ M: "Homem", F: "Mulher" }}>
-              <SelectTrigger className="bg-card text-card-foreground h-9"><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="M">Homem</SelectItem>
-                <SelectItem value="F">Mulher</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className={lbl}>Telefone</label>
+            <label className={lbl}>Telefone <span className="text-destructive">*</span></label>
             <Input ref={telefoneInput.ref} value={telefone}
               onChange={(e) => setTelefone(telefoneInput.onChange(e))}
               placeholder="(XX) XXXXX-XXXX" className={inp} />
             {telefone && !validateTelefone(telefone) && <p className="text-xs text-destructive mt-1">Telefone inválido</p>}
           </div>
           <div>
-            <label className={lbl}>Data de nascimento</label>
-            <Input ref={nascimentoInput.ref} value={nascimento}
-              onChange={(e) => setNascimento(nascimentoInput.onChange(e))}
-              placeholder="DD/MM/AAAA" className={inp} />
-            {nascimento && !validateNascimento(nascimento) && <p className="text-xs text-destructive mt-1">Data inválida</p>}
-          </div>
-          <div>
-            <label className={lbl}>CPF</label>
-            <Input ref={cpfInput.ref} value={cpf}
-              onChange={(e) => setCpf(cpfInput.onChange(e))}
-              placeholder="XXX.XXX.XXX-XX" className={inp} />
-            {cpf && !validateCpf(cpf) && <p className="text-xs text-destructive mt-1">CPF inválido</p>}
-          </div>
-          <div>
-            <label className={lbl}>Observação</label>
-            <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-card text-card-foreground min-h-[36px]" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
             <label className={lbl}>Email <span className="text-destructive">*</span></label>
             <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" className={inp} />
             {email && !validateEmail(email) && <p className="text-xs text-destructive mt-1">Email inválido</p>}
           </div>
+        </div>
+
+        {requireAllFields && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className={lbl}>Prontuário <span className="text-destructive">*</span></label>
+                <Input value={prontuario} onChange={(e) => setProntuario(e.target.value)} className={inp} />
+              </div>
+              <div>
+                <label className={lbl}>Tipo <span className="text-destructive">*</span></label>
+                <SearchSelect
+                  value={tipo}
+                  onChange={setTipo}
+                  options={tipoOptions.map((opt) => ({ id: opt, label: opt }))}
+                  placeholder="Selecione"
+                />
+              </div>
+              <div>
+                <label className={lbl}>Sexo <span className="text-destructive">*</span></label>
+                <SearchSelect
+                  value={sexo}
+                  onChange={setSexo}
+                  options={sexoOptions.map((opt) => ({ id: opt, label: opt }))}
+                  placeholder="Selecione"
+                />
+              </div>
+              <div>
+                <label className={lbl}>Data de nascimento <span className="text-destructive">*</span></label>
+                <Input ref={nascimentoInput.ref} value={nascimento}
+                  onChange={(e) => setNascimento(nascimentoInput.onChange(e))}
+                  placeholder="DD/MM/AAAA" className={inp} />
+                {nascimento && !validateNascimento(nascimento) && <p className="text-xs text-destructive mt-1">Data inválida</p>}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={lbl}>CPF <span className="text-destructive">*</span></label>
+                <Input ref={cpfInput.ref} value={cpf}
+                  onChange={(e) => setCpf(cpfInput.onChange(e))}
+                  placeholder="XXX.XXX.XXX-XX" className={inp} />
+                {cpf && !validateCpf(cpf) && <p className="text-xs text-destructive mt-1">CPF inválido</p>}
+              </div>
+              <div>
+                <label className={lbl}>Observação</label>
+                <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-card text-card-foreground min-h-[36px]" />
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className={lbl}>Senha {modo === "cadastrar" && <span className="text-destructive">*</span>}</label>
             <div className="relative">
@@ -378,35 +364,11 @@ export default function UsuarioPage() {
       <hr className="border-border" />
 
       <div className="flex justify-center pt-2">
-        {batchMode ? (
-          <Button type="button" variant="outline"
-            className="px-14 py-3 text-base font-bold tracking-wide border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-            onClick={addToBatch} disabled={!hasAtLeastOneRole}>
-            <Plus className="h-4 w-4 mr-2" /> ADICIONAR AO LOTE
-          </Button>
-        ) : (
-          <Button className="px-14 py-3 text-base font-bold tracking-wide" onClick={handleSubmit}
-            disabled={submitting || !hasAtLeastOneRole}>
-            {submitting ? "ENVIANDO..." : modo === "cadastrar" ? "CADASTRAR" : "SALVAR"}
-          </Button>
-        )}
+        <Button className="px-14 py-3 text-base font-bold tracking-wide" onClick={handleSubmit}
+          disabled={submitting || !canSubmit}>
+          {submitting ? "ENVIANDO..." : modo === "cadastrar" ? "CADASTRAR" : "SALVAR"}
+        </Button>
       </div>
-
-      {batchMode && (
-        <BatchQueue items={batch.queue} onRemove={batch.remove} onSubmit={submitBatch}
-          submitting={batch.submitting} progress={batch.progress}
-          singular="usuário" plural="usuários"
-          renderItem={(item) => (
-            <>
-              <p className="font-medium text-card-foreground truncate">{item.nome}</p>
-              <p className="text-xs text-muted-foreground truncate">{item.email} · {item.unidadeNome}</p>
-              <p className="text-xs text-muted-foreground">
-                {[item.isAdministrador && "Admin", item.isColetor && "Coletor", item.isEmbaixador && "Embaixador"].filter(Boolean).join(", ")}
-              </p>
-            </>
-          )}
-        />
-      )}
     </SimpleForm>
   );
 }

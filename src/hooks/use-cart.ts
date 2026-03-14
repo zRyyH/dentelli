@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useUnidade } from "@/hooks/use-unidade";
 import type { CartItem, Pedido } from "@/lib/types";
 
 async function apiFetch(path: string, body?: object) {
@@ -15,6 +16,7 @@ async function apiFetch(path: string, body?: object) {
 
 export function useCart() {
   const qc = useQueryClient();
+  const { selectedId: unidadeId } = useUnidade();
 
   const { data, isLoading } = useQuery<{ pedido: Pedido | null; items: CartItem[] }>({
     queryKey: ["cart"],
@@ -30,7 +32,7 @@ export function useCart() {
 
   const addToCart = useMutation({
     mutationFn: ({ produtoId, pontos, quantidade }: { produtoId: string; pontos: number; quantidade: number }) =>
-      apiFetch("/api/cart/add", { produtoId, pontos, quantidade }),
+      apiFetch("/api/cart/add", { produtoId, pontos, quantidade, unidadeId }),
     onSuccess: invalidate,
   });
 

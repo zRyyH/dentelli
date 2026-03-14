@@ -48,10 +48,10 @@ export const useRelacoes = () =>
     queryFn: () => get("/api/admin/relacoes"),
   });
 
-export const useSaldoEmbaixador = (usuarioId: string) =>
+export const useSaldoEmbaixador = (usuarioId: string, unidadeId?: string) =>
   useQuery<SaldoData>({
-    queryKey: ["saldo-embaixador", usuarioId],
-    queryFn: () => get(`/api/admin/saldo-embaixador?usuarioId=${usuarioId}`),
+    queryKey: ["saldo-embaixador", usuarioId, unidadeId ?? ""],
+    queryFn: () => get(`/api/admin/saldo-embaixador?usuarioId=${usuarioId}${unidadeId ? `&unidadeId=${unidadeId}` : ""}`),
     enabled: !!usuarioId,
   });
 
@@ -79,6 +79,12 @@ export const useTipoOptions = () =>
   useQuery<string[]>({
     queryKey: ["tipo-options"],
     queryFn: () => get("/api/admin/tipo-options"),
+  });
+
+export const useSexoOptions = () =>
+  useQuery<string[]>({
+    queryKey: ["sexo-options"],
+    queryFn: () => get("/api/admin/sexo-options"),
   });
 
 export const useCategorias = () =>

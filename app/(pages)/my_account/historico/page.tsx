@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AccountLayout } from "@/components/account-layout";
 import { fetchWithAuth, PB_BASE_URL, getUserId } from "@/lib/pb";
+import { useUnidade } from "@/hooks/use-unidade";
 
 interface HistoricoItem {
   id: string;
@@ -22,11 +23,13 @@ interface SaldoData {
 
 export default function HistoricoPage() {
   const userId = getUserId();
+  const { selectedId: unidadeId, selectedNome, unidades } = useUnidade();
 
   const { data: saldoData } = useQuery<SaldoData>({
-    queryKey: ["saldo", userId],
+    queryKey: ["saldo", userId, unidadeId],
     queryFn: async () => {
-      const filter = encodeURIComponent(`usuario='${userId}'`);
+      const unidadeFilter = unidadeId ? ` && unidade='${unidadeId}'` : "";
+      const filter = encodeURIComponent(`usuario='${userId}'${unidadeFilter}`);
       const res = await fetchWithAuth(`${PB_BASE_URL}/api/collections/saldo/records?filter=${filter}&perPage=1`);
       if (!res.ok) throw new Error();
       return (await res.json()).items?.[0] || { saldo: 0 };
@@ -35,10 +38,11 @@ export default function HistoricoPage() {
   });
 
   const { data: historicoItems = [] } = useQuery<HistoricoItem[]>({
-    queryKey: ["historico", userId],
+    queryKey: ["historico", userId, unidadeId],
     queryFn: async () => {
       if (!userId) return [];
-      const filter = encodeURIComponent(`usuario='${userId}'`);
+      const unidadeFilter = unidadeId ? ` && unidade='${unidadeId}'` : "";
+      const filter = encodeURIComponent(`usuario='${userId}'${unidadeFilter}`);
       const res = await fetchWithAuth(`${PB_BASE_URL}/api/collections/historico/records?filter=${filter}&perPage=200&sort=-created`);
       if (!res.ok) throw new Error();
       return (await res.json()).items;
@@ -58,6 +62,12 @@ export default function HistoricoPage() {
 
   return (
     <AccountLayout>
+      {unidades.length > 1 && selectedNome && (
+        <p className="text-xs text-muted-foreground mb-6">
+          Unidade: <span className="font-semibold text-foreground">{selectedNome}</span>
+        </p>
+      )}
+
       <div className="mb-12">
         <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">Saldo disponível</p>
         <div className="flex items-baseline gap-2">

@@ -6,6 +6,7 @@ import { ChevronDown, Search } from "lucide-react";
 export interface SearchSelectOption {
   id: string;
   label: string;
+  searchText?: string; // extra text to match against (e.g. email, cpf, telefone)
 }
 
 interface SearchSelectProps {
@@ -23,10 +24,13 @@ export function SearchSelect({ value, onChange, options, placeholder = "Selecion
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const filtered = useMemo(
-    () => options.filter((o) => o.label.toLowerCase().includes(search.toLowerCase())),
-    [options, search]
-  );
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return options.filter((o) =>
+      o.label.toLowerCase().includes(q) ||
+      (o.searchText && o.searchText.toLowerCase().includes(q))
+    );
+  }, [options, search]);
 
   const selected = options.find((o) => o.id === value);
 

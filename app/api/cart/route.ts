@@ -10,17 +10,21 @@ async function fetchCartItems(itemIds: string[]) {
 }
 
 export async function GET(_request: NextRequest) {
-  const token = await getPbToken();
-  if (!token) return apiError("Não autenticado", 401);
-  const userId = getUserIdFromToken(token);
-  if (!userId) return apiError("Token inválido", 401);
+  try {
+    const token = await getPbToken();
+    if (!token) return apiError("Não autenticado", 401);
+    const userId = getUserIdFromToken(token);
+    if (!userId) return apiError("Token inválido", 401);
 
-  const filter = encodeURIComponent(`usuario='${userId}' && status='CARRINHO'`);
-  const pedidoRes = await pbFetch(`/api/collections/pedido/records?filter=${filter}&perPage=1`);
-  if (!pedidoRes.ok) return NextResponse.json({ pedido: null, items: [] });
+    const filter = encodeURIComponent(`usuario='${userId}' && status='CARRINHO'`);
+    const pedidoRes = await pbFetch(`/api/collections/pedido/records?filter=${filter}&perPage=1`);
+    if (!pedidoRes.ok) return NextResponse.json({ pedido: null, items: [] });
 
-  const pedido = (await pedidoRes.json()).items?.[0] || null;
-  const items = pedido?.item?.length ? await fetchCartItems(pedido.item) : [];
+    const pedido = (await pedidoRes.json()).items?.[0] || null;
+    const items = pedido?.item?.length ? await fetchCartItems(pedido.item) : [];
 
-  return NextResponse.json({ pedido, items });
+    return NextResponse.json({ pedido, items });
+  } catch {
+    return NextResponse.json({ pedido: null, items: [] });
+  }
 }

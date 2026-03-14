@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pbFetch, getPbToken, apiError } from "@/lib/pb-server";
+import { pbFetch, pbAdminFetch, getPbToken, getUserIdFromToken, apiError } from "@/lib/pb-server";
 import { withWebhook } from "@/lib/with-webhook";
 
 export const POST = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
+  const requesterId = getUserIdFromToken(token);
 
   const body = await request.json();
   const {
@@ -14,16 +15,18 @@ export const POST = withWebhook(async (request: NextRequest) => {
     nivelInicianteId,
   } = body;
 
+  // Apenas donos podem definir administrador=true
+  if (isAdministrador && requesterId) {
+    const requesterRes = await pbAdminFetch(`/api/collections/usuario/records/${requesterId}`);
+    const requester = requesterRes.ok ? await requesterRes.json() : null;
+    if (!requester?.dono) return apiError("Sem permissão para cadastrar administradores", 403);
+  }
+
   const usuarioBody: any = {
     unidade: unidadeId,
     nome,
-    prontuario,
-    tipo,
-    sexo,
-    telefone,
-    cpf: cpf?.replace(/\D/g, "") || "",
-    observacao,
     email,
+    telefone,
     administrador: !!isAdministrador,
     coletor: !!isColetor,
     embaixador: !!isEmbaixador,
@@ -34,6 +37,11 @@ export const POST = withWebhook(async (request: NextRequest) => {
     verified: true,
     nivel: nivelInicianteId,
   };
+  if (prontuario !== undefined) usuarioBody.prontuario = prontuario;
+  if (tipo !== undefined) usuarioBody.tipo = tipo;
+  if (sexo !== undefined) usuarioBody.sexo = sexo;
+  if (observacao !== undefined) usuarioBody.observacao = observacao;
+  if (cpf !== undefined) usuarioBody.cpf = cpf?.replace(/\D/g, "") || "";
   if (nascimento) usuarioBody.nascimento = nascimento;
 
   const res = await pbFetch("/api/collections/usuario/records", {
@@ -43,7 +51,7 @@ export const POST = withWebhook(async (request: NextRequest) => {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    return apiError((err as any)?.message || "Falha ao cadastrar usuário", 400);
+    return NextResponse.json({ error: (err as any)?.message || "Falha ao cadastrar usuário", data: (err as any)?.data }, { status: 400 });
   }
   const usuarioRecord = await res.json();
   const { password: _p, passwordConfirm: _pc, tokenKey: _tk, ...usuarioSafe } = usuarioRecord;

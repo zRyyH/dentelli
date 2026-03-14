@@ -2,6 +2,7 @@ export const PB_BASE_URL = "https://pbdentelli.awpsoft.com.br";
 
 const TOKEN_COOKIE = "pb_token";
 const USER_KEY = "pb_user";
+const UNIDADE_KEY = "pb_unidade";
 
 // ── Cookie helpers ────────────────────────────────────────────────────────────
 
@@ -42,6 +43,14 @@ export function clearUserData() {
   try { localStorage.removeItem(USER_KEY); } catch {}
 }
 
+export function getSelectedUnidade(): string | null {
+  try { return localStorage.getItem(UNIDADE_KEY); } catch { return null; }
+}
+
+export function setSelectedUnidade(id: string) {
+  try { localStorage.setItem(UNIDADE_KEY, id); } catch {}
+}
+
 export function isAuthenticated(): boolean {
   return !!getAuthToken();
 }
@@ -53,6 +62,10 @@ export function hasRole(role: "embaixador" | "coletor" | "superuser" | "administ
 
 export function canAccessAdminMenus(): boolean {
   return hasRole("superuser") || hasRole("administrador");
+}
+
+export function isDono(): boolean {
+  return !!(getUserData()?.dono);
 }
 
 // ── Fetch with auth ───────────────────────────────────────────────────────────

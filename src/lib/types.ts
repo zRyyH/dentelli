@@ -82,9 +82,12 @@ export interface Embaixador {
   id: string;
   nome: string;
   embaixador: boolean;
-  unidade?: string;
+  unidade?: string | string[];
   tipo?: string;
   prontuario?: string;
+  email?: string;
+  cpf?: string;
+  telefone?: string;
 }
 
 export interface Coletor {
@@ -92,6 +95,9 @@ export interface Coletor {
   nome: string;
   coletor: boolean;
   unidade?: string;
+  email?: string;
+  cpf?: string;
+  telefone?: string;
 }
 
 export interface Missao {
