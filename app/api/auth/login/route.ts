@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PB_BASE_URL, apiError } from "@/lib/pb-server";
+import { pbAdminFetch, apiError } from "@/lib/pb-server";
 import { withWebhook } from "@/lib/with-webhook";
 
 export const POST = withWebhook(async (request: NextRequest) => {
   const { email, password } = await request.json();
 
-  const res = await fetch(`${PB_BASE_URL}/api/collections/usuario/auth-with-password`, {
+  const res = await pbAdminFetch("/api/collections/usuario/auth-with-password", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ identity: email, password }),

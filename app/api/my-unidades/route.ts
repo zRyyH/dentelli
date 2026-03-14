@@ -12,16 +12,21 @@ export async function GET() {
   if (!userRes.ok) return apiError("Falha ao buscar usuário");
   const user = await userRes.json();
 
+  // Dono tem acesso a todas as unidades
+  if (user.dono) {
+    const unidadesRes = await pbFetch(`/api/collections/unidade/records?perPage=500&sort=nome`);
+    if (!unidadesRes.ok) return NextResponse.json([]);
+    return NextResponse.json((await unidadesRes.json()).items);
+  }
+
   const ids: string[] = Array.isArray(user.unidade) ? user.unidade : [];
   if (!ids.length) return NextResponse.json([]);
 
-  // Busca as unidades pelo nome
   const filter = ids.map((id) => `id='${id}'`).join("||");
   const unidadesRes = await pbFetch(`/api/collections/unidade/records?filter=(${filter})&perPage=100`);
   if (!unidadesRes.ok) return NextResponse.json([]);
 
   const unidades = (await unidadesRes.json()).items as { id: string; nome: string }[];
-  // Mantém a ordem original dos IDs do usuário
   const sorted = ids.map((id) => unidades.find((u) => u.id === id)).filter(Boolean);
   return NextResponse.json(sorted);
 }

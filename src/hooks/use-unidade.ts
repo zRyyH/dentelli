@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, type ReactNode, createElement } from "react";
-import { getSelectedUnidade, setSelectedUnidade } from "@/lib/pb";
+import { getSelectedUnidade, setSelectedUnidade, isAuthenticated } from "@/lib/pb";
 
 interface UnidadeInfo { id: string; nome: string; }
 
@@ -24,6 +24,7 @@ export function UnidadeProvider({ children }: { children: ReactNode }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!isAuthenticated()) return;
     fetch("/api/my-unidades")
       .then((r) => (r.ok ? r.json() : []))
       .then((list: UnidadeInfo[]) => {

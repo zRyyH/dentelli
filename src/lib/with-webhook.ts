@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PB_BASE_URL } from "./pb-server";
+import { pbAdminFetch } from "./pb-server";
 
 type Handler = (request: NextRequest, context?: any) => Promise<NextResponse>;
 
@@ -10,7 +10,7 @@ let cachedAt = 0;
 async function getWebhookUrl(): Promise<string | null> {
   if (Date.now() - cachedAt < 60_000) return cachedUrl || null;
   try {
-    const res = await fetch(`${PB_BASE_URL}/api/collections/tema/records?perPage=1`);
+    const res = await pbAdminFetch(`/api/collections/tema/records?perPage=1`);
     if (!res.ok) return null;
     cachedUrl = (await res.json()).items?.[0]?.webhook ?? "";
     cachedAt = Date.now();

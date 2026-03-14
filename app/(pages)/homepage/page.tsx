@@ -15,6 +15,7 @@ import { ProductCard } from "@/components/product-card";
 import { useTheme } from "@/hooks/use-theme";
 import { useProducts, getProductImageUrl } from "@/hooks/use-products";
 import { useCategorias } from "@/hooks/use-admin-data";
+import { PageLoader } from "@/components/page-loader";
 import { PB_BASE_URL } from "@/lib/pb";
 import type { Product } from "@/lib/types";
 
@@ -57,9 +58,10 @@ function CarouselWithDots({ products }: { products: Product[] }) {
 export default function HomepagePage() {
   const router = useRouter();
   const { images } = useTheme();
-  const { data: products = [] } = useProducts();
-  const { data: categorias = [] } = useCategorias();
+  const { data: products = [], isLoading: productsLoading } = useProducts();
+  const { data: categorias = [], isLoading: categoriasLoading } = useCategorias();
 
+  const isLoading = productsLoading || categoriasLoading;
   const recentProducts = products.slice(0, 8);
   const dentellinosProducts = products.slice(0, 3);
 
@@ -68,6 +70,7 @@ export default function HomepagePage() {
       <SiteHeader activeNav="HOME" />
 
       <PageTransition>
+      {isLoading ? <PageLoader /> : <>
       {/* Hero Banner */}
       <section className="relative w-full max-h-[700px] overflow-hidden" style={{ background: "var(--gradient-bg)" }}>
         {images.banner ? (
@@ -178,6 +181,7 @@ export default function HomepagePage() {
         </section>
       )}
 
+      </>}
       </PageTransition>
 
       <SiteFooter />

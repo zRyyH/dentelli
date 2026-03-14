@@ -1,20 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Trash2, CheckCircle2, XCircle, Wallet, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchSelect } from "@/components/search-select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleForm } from "@/components/simple-form";
-import { BatchQueue } from "@/components/batch-queue";
-import { BatchToggle } from "@/components/batch-toggle";
 import {
-  useUnidades, useEmbaixadores, useMissoes,
+  useEmbaixadores, useMissoes,
   usePedidosPendentes, useSaldoEmbaixador, useIndicacoes,
 } from "@/hooks/use-admin-data";
-import { useBatch } from "@/hooks/use-batch";
+import { useUnidade } from "@/hooks/use-unidade";
 import { toast } from "sonner";
 
 async function apiPost(path: string, body: object) {
@@ -30,18 +28,16 @@ async function apiPost(path: string, body: object) {
   return res.json();
 }
 
-interface BatchCredito {
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface CreditoRow {
   _id: string;
-  unidadeId: string;
-  unidadeNome: string;
   embaixadorId: string;
-  embaixadorNome: string;
   missaoId: string;
-  missaoNome: string;
   indicacaoId: string;
-  pontos: number;
   observacao: string;
+  pontos: number;
   status?: "pending" | "success" | "error";
+  error?: string;
 }
 
 type TipoTransacao = "CREDITO" | "DEBITO";
@@ -49,157 +45,156 @@ type TipoTransacao = "CREDITO" | "DEBITO";
 const lbl = "block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5";
 const inp = "bg-card text-card-foreground h-9";
 
+function makeRow(): CreditoRow {
+  return { _id: `${Date.now()}-${Math.random()}`, embaixadorId: "", missaoId: "", indicacaoId: "", observacao: "", pontos: 0 };
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function CentralPage() {
-const [tipoTransacao, setTipoTransacao] = useState<TipoTransacao>("CREDITO");
+  const [tipoTransacao, setTipoTransacao] = useState<TipoTransacao>("CREDITO");
   const [unidadeId, setUnidadeId] = useState("");
+
+  // CRÉDITO — multi-row
+  const [rows, setRows] = useState<CreditoRow[]>([makeRow()]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // DÉBITO — single form
   const [embaixadorId, setEmbaixadorId] = useState("");
-  const [missaoId, setMissaoId] = useState("");
-  const [indicacaoId, setIndicacaoId] = useState("");
-  const [observacao, setObservacao] = useState("");
-  const [pontos, setPontos] = useState(0);
   const [pedidoId, setPedidoId] = useState("");
   const [pontosItem, setPontosItem] = useState("");
   const [observacaoDebito, setObservacaoDebito] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [batchMode, setBatchMode] = useState(false);
+  const [submittingDebito, setSubmittingDebito] = useState(false);
 
-  const batch = useBatch<BatchCredito>();
-  const { data: todasUnidades = [] } = useUnidades();
-  const { data: embaixadores = [] } = useEmbaixadores(); // todos
-  const { data: todasMissoes = [] } = useMissoes();
-  const { data: todasIndicacoes = [] } = useIndicacoes();
+  const { unidades } = useUnidade();
+  const { data: embaixadores = [], isLoading: loadingEmb } = useEmbaixadores(unidadeId || undefined);
+  const { data: todasMissoes = [], isLoading: loadingMissoes } = useMissoes();
+
   const { data: pedidos = [] } = usePedidosPendentes(embaixadorId);
-  const { data: saldoData } = useSaldoEmbaixador(embaixadorId, unidadeId || undefined);
-
-  const embaixadorSelecionado = useMemo(() => embaixadores.find((e) => e.id === embaixadorId), [embaixadores, embaixadorId]);
-
-  const unidades = useMemo(() => {
-    if (!embaixadorSelecionado?.unidade) return [];
-    const ids = Array.isArray(embaixadorSelecionado.unidade)
-      ? embaixadorSelecionado.unidade
-      : [embaixadorSelecionado.unidade];
-    return todasUnidades.filter((u) => ids.includes(u.id));
-  }, [todasUnidades, embaixadorSelecionado]);
+  const { data: saldoData, isLoading: saldoLoading } = useSaldoEmbaixador(embaixadorId, unidadeId || undefined);
 
   const missoes = useMemo(() => todasMissoes.filter((m) => !m.automatico), [todasMissoes]);
-  const missaoSelecionada = useMemo(() => missoes.find((m) => m.id === missaoId), [missaoId, missoes]);
-  const missaoCategoria = missaoSelecionada?.categoria ?? "";
+  const embaixadorOptions = useMemo(() => embaixadores.map((e) => ({ id: e.id, label: e.nome, searchText: [(e as any).cpf, (e as any).telefone].filter(Boolean).join(" ") })), [embaixadores]);
 
-  const saldoPontos = (saldoData?.pendente ?? 0) + (saldoData?.saldo ?? 0);
+  const saldoPontos = saldoData?.saldo ?? 0;
   const custoDebito = parseFloat(pontosItem) || 0;
   const saldoApos = saldoPontos - custoDebito;
 
-  const resetTransacao = () => {
-    setMissaoId(""); setIndicacaoId(""); setObservacao(""); setPontos(0);
+  // Reset quando unidade muda
+  useEffect(() => {
+    setRows([makeRow()]);
+    setEmbaixadorId(""); setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
+  }, [unidadeId]);
+
+  // Reset quando tipo muda
+  useEffect(() => {
+    setRows([makeRow()]);
+    setEmbaixadorId(""); setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
+  }, [tipoTransacao]);
+
+  // Reset pedido quando embaixador muda (débito)
+  useEffect(() => {
     setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
+  }, [embaixadorId]);
+
+  const updateRow = (id: string, patch: Partial<CreditoRow>) =>
+    setRows((prev) => prev.map((r) => r._id === id ? { ...r, ...patch } : r));
+
+  const removeRow = (id: string) =>
+    setRows((prev) => prev.filter((r) => r._id !== id));
+
+  const addRow = () => setRows((prev) => [...prev, makeRow()]);
+
+  // ─── Submeter créditos ──────────────────────────────────────────────────
+  const handleSubmitCredito = async () => {
+    if (!unidadeId) { toast.error("Selecione uma unidade"); return; }
+    const indicacaoKeys = new Set<string>();
+    for (const row of rows) {
+      if (!row.embaixadorId) { toast.error("Selecione o embaixador em todos os créditos"); return; }
+      if (!row.missaoId) { toast.error("Selecione a missão em todos os créditos"); return; }
+      const missao = missoes.find((m) => m.id === row.missaoId);
+      if (missao?.categoria === "INDICACAO") {
+        if (!row.indicacaoId) { toast.error("Selecione a indicação em todos os créditos de indicação"); return; }
+        const key = `${row.missaoId}::${row.indicacaoId}`;
+        if (indicacaoKeys.has(key)) { toast.error("Existe mais de um crédito com a mesma missão e indicação"); return; }
+        indicacaoKeys.add(key);
+      }
+    }
+
+    setSubmitting(true);
+    const unidadeNome = unidades.find((u) => u.id === unidadeId)?.nome ?? "";
+    let errors = 0;
+
+    const updated = await Promise.all(
+      rows.map(async (row) => {
+        const embaixador = embaixadores.find((e) => e.id === row.embaixadorId) ?? { id: row.embaixadorId };
+        const missao = missoes.find((m) => m.id === row.missaoId) ?? { id: row.missaoId };
+        try {
+          await apiPost("/api/admin/central", {
+            tipo: "CREDITO",
+            embaixadorId: row.embaixadorId,
+            unidadeId,
+            missaoId: row.missaoId,
+            indicacaoId: row.indicacaoId,
+            pontos: row.pontos,
+            observacao: row.observacao,
+            saldoPontos: 0,
+            embaixador,
+            unidade: { id: unidadeId, nome: unidadeNome },
+            missao,
+          });
+          return { ...row, status: "success" as const };
+        } catch (err: any) {
+          errors++;
+          return { ...row, status: "error" as const, error: err.message || "Erro" };
+        }
+      })
+    );
+
+    setRows(updated);
+    setSubmitting(false);
+
+    if (errors === 0) {
+      toast.success(`${rows.length} crédito(s) registrado(s) com sucesso!`);
+      setRows([makeRow()]);
+    } else {
+      toast.error(`${errors} de ${rows.length} crédito(s) falharam.`);
+    }
   };
 
-  useEffect(() => { resetTransacao(); setBatchMode(false); batch.clear(); }, [tipoTransacao]);
-  useEffect(() => { setUnidadeId(""); resetTransacao(); }, [embaixadorId]);
-  useEffect(() => { resetTransacao(); }, [unidadeId]);
+  // ─── Submeter débito ────────────────────────────────────────────────────
+  const handleSubmitDebito = async () => {
+    if (!unidadeId || !embaixadorId) { toast.error("Preencha unidade e embaixador"); return; }
+    if (!pedidoId) { toast.error("Selecione um pedido"); return; }
+    if (saldoApos < 0) { toast.error("Saldo insuficiente para este resgate"); return; }
 
-  const handleMissaoChange = (id: string) => {
-    const missao = missoes.find((m) => m.id === id);
-    setMissaoId(id);
-    setIndicacaoId("");
-    setPontos(missao?.pontos || 0);
+    setSubmittingDebito(true);
+    try {
+      await apiPost("/api/admin/central", {
+        tipo: "DEBITO",
+        embaixadorId, unidadeId, pedidoId, custoDebito, observacaoDebito, saldoPontos,
+        embaixador: embaixadores.find((e) => e.id === embaixadorId) ?? { id: embaixadorId },
+        unidade: unidades.find((u) => u.id === unidadeId) ?? { id: unidadeId },
+        pedido: pedidos.find((p) => p.id === pedidoId) ?? { id: pedidoId },
+        missaoId: "", indicacaoId: "", pontos: 0, observacao: observacaoDebito, missao: {},
+      });
+      toast.success("Resgate registrado com sucesso!");
+      setEmbaixadorId(""); setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao processar");
+    } finally {
+      setSubmittingDebito(false);
+    }
   };
 
   const selectPedido = (id: string) => {
     const pedido = pedidos.find((p) => p.id === id);
-    if (pedido) {
-      setPedidoId(id);
-      setPontosItem(String(pedido.pontos));
-      setObservacaoDebito((pedido as any).descricao || "");
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!unidadeId || !embaixadorId) { toast.error("Preencha unidade e embaixador"); return; }
-    if (tipoTransacao === "CREDITO" && !missaoId) { toast.error("Selecione uma missão"); return; }
-    if (tipoTransacao === "CREDITO" && missaoCategoria === "INDICACAO" && !indicacaoId) { toast.error("Selecione uma indicação para esta missão"); return; }
-    if (tipoTransacao === "DEBITO") {
-      if (!pedidoId) { toast.error("Selecione um pedido"); return; }
-      if (saldoApos < 0) { toast.error("Saldo insuficiente para este resgate"); return; }
-    }
-
-    setSubmitting(true);
-    try {
-      await apiPost("/api/admin/central", {
-        tipo: tipoTransacao,
-        embaixadorId, unidadeId, missaoId, indicacaoId, pontos, observacao,
-        pedidoId, custoDebito, observacaoDebito,
-        saldoPontos,
-        embaixador: embaixadores.find((e) => e.id === embaixadorId) ?? { id: embaixadorId },
-        unidade: unidades.find((u) => u.id === unidadeId) ?? { id: unidadeId },
-        missao: missoes.find((m) => m.id === missaoId) ?? { id: missaoId },
-        pedido: pedidos.find((p) => p.id === pedidoId) ?? { id: pedidoId },
-      });
-      if (tipoTransacao === "CREDITO") {
-        toast.success("Pontuação registrada com sucesso!");
-        resetTransacao();
-        setUnidadeId("");
-      } else {
-        toast.success("Resgate registrado com sucesso!");
-        resetTransacao();
-        setPedidoId(""); setPontosItem(""); setObservacaoDebito("");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao processar");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const addToBatch = () => {
-    if (!unidadeId || !embaixadorId) { toast.error("Preencha unidade e embaixador"); return; }
-    if (!missaoId) { toast.error("Selecione uma missão"); return; }
-    if (missaoCategoria === "INDICACAO" && !indicacaoId) { toast.error("Selecione uma indicação para esta missão"); return; }
-    batch.add({
-      unidadeId, unidadeNome: unidades.find((u) => u.id === unidadeId)?.nome || "",
-      embaixadorId, embaixadorNome: embaixadores.find((e) => e.id === embaixadorId)?.nome || "",
-      missaoId, missaoNome: missoes.find((m) => m.id === missaoId)?.missao || "",
-      indicacaoId,
-      pontos, observacao,
-    });
-    setMissaoId(""); setIndicacaoId(""); setObservacao(""); setPontos(0);
-    toast.success("Adicionado ao lote");
-  };
-
-  const submitBatch = async () => {
-    const result = await batch.run(async (item) => {
-      try {
-        await apiPost("/api/admin/central", {
-          tipo: "CREDITO",
-          embaixadorId: item.embaixadorId,
-          unidadeId: item.unidadeId,
-          missaoId: item.missaoId,
-          indicacaoId: item.indicacaoId,
-          pontos: item.pontos,
-          observacao: item.observacao,
-          saldoPontos: 0,
-          embaixador: { id: item.embaixadorId, nome: item.embaixadorNome },
-          unidade: { id: item.unidadeId, nome: item.unidadeNome },
-          missao: { id: item.missaoId, missao: item.missaoNome, pontos: item.pontos },
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    });
-    if (!result) return;
-    if (result.errors === 0) {
-      toast.success(`${result.total} pontuação(ões) registrada(s) com sucesso!`);
-      batch.clear();
-    } else {
-      toast.error(`${result.errors} de ${result.total} item(s) falharam.`);
-      batch.clearSuccesses();
-    }
+    if (pedido) { setPedidoId(id); setPontosItem(String(pedido.pontos)); setObservacaoDebito((pedido as any).descricao || ""); }
   };
 
   return (
     <SimpleForm title="CENTRAL DE PONTOS">
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+      {/* Tipo + Unidade */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
         <div>
           <label className={lbl}>Tipo de transação</label>
           <Tabs value={tipoTransacao} onValueChange={(v) => setTipoTransacao(v as TipoTransacao)}>
@@ -209,82 +204,99 @@ const [tipoTransacao, setTipoTransacao] = useState<TipoTransacao>("CREDITO");
             </TabsList>
           </Tabs>
         </div>
-        {tipoTransacao === "CREDITO" && (
-          <div className="pb-0.5">
-            <BatchToggle id="sw-batch-cp" checked={batchMode}
-              onCheckedChange={(v) => { setBatchMode(v); if (!v) batch.clear(); }} />
-          </div>
-        )}
-      </div>
-
-      <hr className="border-border" />
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className={lbl}>Embaixador</label>
-          <SearchSelect
-            value={embaixadorId}
-            onChange={setEmbaixadorId}
-            options={embaixadores.map((e) => ({ id: e.id, label: e.nome, searchText: [(e as any).cpf, (e as any).telefone].filter(Boolean).join(" ") }))}
-            placeholder="Selecione um embaixador"
-          />
-        </div>
         <div>
           <label className={lbl}>Unidade</label>
           <SearchSelect
             value={unidadeId}
             onChange={setUnidadeId}
             options={unidades.map((u) => ({ id: u.id, label: u.nome }))}
-            placeholder={!embaixadorId ? "Selecione o embaixador primeiro" : "Selecione uma unidade"}
-            disabled={!embaixadorId || unidades.length === 0}
+            placeholder="Selecione uma unidade"
+            loading={unidades.length === 0}
           />
-        </div>
-        <div>
-          <label className={lbl}>{tipoTransacao === "CREDITO" ? "Saldo de pontos" : "Pontos disponíveis"}</label>
-          <Input value={saldoPontos} readOnly className={`${inp} cursor-not-allowed`} />
         </div>
       </div>
 
       <hr className="border-border" />
 
-      {tipoTransacao === "CREDITO" ? (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-4">
-            <div>
-              <label className={lbl}>Missão</label>
-              <SearchSelect
-                value={missaoId}
-                onChange={handleMissaoChange}
-                options={missoes.map((m) => ({ id: m.id, label: m.missao, searchText: m.categoria ?? "" }))}
-                placeholder="Selecione uma opção"
+      {/* ── CRÉDITO ── */}
+      {tipoTransacao === "CREDITO" && (<>
+        <div className="space-y-3">
+          {rows.map((row, idx) => {
+            const isDuplicateIndicacao = (() => {
+              const missao = missoes.find((m) => m.id === row.missaoId);
+              if (missao?.categoria !== "INDICACAO" || !row.indicacaoId) return false;
+              return rows.some((r) => r._id !== row._id && r.missaoId === row.missaoId && r.indicacaoId === row.indicacaoId);
+            })();
+            return (
+              <CreditoRowForm
+                key={row._id}
+                row={row}
+                idx={idx}
+                total={rows.length}
+                embaixadorOptions={embaixadorOptions}
+                missoes={missoes}
+                unidadeSelecionada={!!unidadeId}
+                loadingEmb={!!unidadeId && loadingEmb}
+                loadingMissoes={loadingMissoes}
+                isDuplicateIndicacao={isDuplicateIndicacao}
+                onUpdate={(patch) => updateRow(row._id, patch)}
+                onRemove={() => removeRow(row._id)}
               />
-            </div>
-            <div>
-              <label className={lbl}>Observação</label>
-              <Textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} className="bg-card text-card-foreground min-h-[36px]" />
-            </div>
-            <div className="w-24">
-              <label className={lbl}>Pontos</label>
-              <Input value={pontos || ""} readOnly className={`${inp} cursor-not-allowed`} />
-            </div>
-          </div>
-          {missaoCategoria === "INDICACAO" && (
-            <div>
-              <label className={lbl}>Indicação</label>
-              <SearchSelect
-                value={indicacaoId}
-                onChange={setIndicacaoId}
-                options={todasIndicacoes.map((i) => ({
-                  id: i.id,
-                  label: `${i.nome} — ${i.telefone}`,
-                  searchText: `${i.telefone.replace(/\D/g, "")} ${i.relacao}`,
-                }))}
-                placeholder="Buscar por nome, telefone ou relação..."
-              />
-            </div>
-          )}
+            );
+          })}
         </div>
-      ) : (
+
+        <div className="flex justify-center">
+          <Button type="button" variant="outline" size="sm"
+            onClick={addRow} disabled={!unidadeId}
+            className="border-dashed border-primary text-primary hover:bg-primary/5">
+            <Plus className="h-4 w-4 mr-1.5" /> NOVO CRÉDITO
+          </Button>
+        </div>
+
+        <hr className="border-border" />
+
+        <div className="flex justify-center pt-2">
+          <Button className="px-14 py-3 text-base font-bold tracking-wide"
+            onClick={handleSubmitCredito}
+            disabled={submitting || !unidadeId || rows.length === 0 || rows.some((row) => {
+              const m = missoes.find((m) => m.id === row.missaoId);
+              return m?.categoria === "INDICACAO" && !!row.indicacaoId &&
+                rows.filter((r) => r.missaoId === row.missaoId && r.indicacaoId === row.indicacaoId).length > 1;
+            })}>
+            {submitting
+              ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> ENVIANDO...</>
+              : `PONTUAR${rows.length > 1 ? ` (${rows.length})` : ""}`}
+          </Button>
+        </div>
+      </>)}
+
+      {/* ── DÉBITO ── */}
+      {tipoTransacao === "DEBITO" && (<>
+        <div>
+          <label className={lbl}>Embaixador</label>
+          <SearchSelect
+            value={embaixadorId}
+            onChange={setEmbaixadorId}
+            options={embaixadorOptions}
+            placeholder={!unidadeId ? "Selecione a unidade primeiro" : "Selecione um embaixador"}
+            disabled={!unidadeId}
+            loading={!!unidadeId && loadingEmb}
+          />
+        </div>
+
+        {embaixadorId && (
+          <div className="rounded-xl border border-border bg-muted/30 px-5 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <Wallet className="h-5 w-5 text-primary" />
+              <span className="text-sm font-semibold text-muted-foreground">Saldo disponível</span>
+            </div>
+            {saldoLoading
+              ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              : <span className="text-2xl font-bold text-primary tabular-nums">{saldoPontos.toLocaleString("pt-BR")} <span className="text-sm font-medium">pts</span></span>}
+          </div>
+        )}
+
         <div className="space-y-4">
           <div className="grid grid-cols-[1fr_6rem] gap-4 items-end">
             <div>
@@ -306,6 +318,7 @@ const [tipoTransacao, setTipoTransacao] = useState<TipoTransacao>("CREDITO");
               <Input value={pontosItem} readOnly className={`${inp} cursor-not-allowed`} />
             </div>
           </div>
+
           {pedidoId && (() => {
             const pedidoSel = pedidos.find((p) => p.id === pedidoId);
             const itens: any[] = (pedidoSel as any)?.itens ?? [];
@@ -328,49 +341,147 @@ const [tipoTransacao, setTipoTransacao] = useState<TipoTransacao>("CREDITO");
               </div>
             );
           })()}
+
           <div>
             <label className={lbl}>Observação</label>
             <Input value={observacaoDebito} onChange={(e) => setObservacaoDebito(e.target.value)} className={inp} />
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Saldo após:</span>
-            <Input value={saldoApos} readOnly className="w-28 h-9 bg-card text-card-foreground cursor-not-allowed text-right" />
-          </div>
+          {pedidoId && (
+            <div className={`rounded-xl border px-5 py-4 flex items-center justify-between ${saldoApos < 0 ? "border-destructive/40 bg-destructive/5" : "border-emerald-400/40 bg-emerald-500/5"}`}>
+              <div className="flex items-center gap-2.5">
+                {saldoApos < 0
+                  ? <AlertTriangle className="h-5 w-5 text-destructive" />
+                  : <Wallet className="h-5 w-5 text-emerald-600" />}
+                <span className="text-sm font-semibold text-muted-foreground">Saldo após resgate</span>
+              </div>
+              <span className={`text-2xl font-bold tabular-nums ${saldoApos < 0 ? "text-destructive" : "text-emerald-600"}`}>
+                {saldoApos.toLocaleString("pt-BR")} <span className="text-sm font-medium">pts</span>
+              </span>
+            </div>
+          )}
         </div>
-      )}
 
-      <hr className="border-border" />
+        <hr className="border-border" />
 
-      <div className="flex justify-center pt-2">
-        {batchMode && tipoTransacao === "CREDITO" ? (
-          <Button type="button" variant="outline"
-            className="px-14 py-3 text-base font-bold tracking-wide border-primary text-primary hover:bg-primary hover:text-primary-foreground"
-            onClick={addToBatch} disabled={!unidadeId || !embaixadorId || !missaoId}>
-            <Plus className="h-4 w-4 mr-2" /> ADICIONAR AO LOTE
-          </Button>
-        ) : (
+        <div className="flex justify-center pt-2">
           <Button className="px-14 py-3 text-base font-bold tracking-wide"
-            disabled={submitting || !unidadeId || !embaixadorId || (tipoTransacao === "CREDITO" ? !missaoId : !pedidoId)}
-            onClick={handleSubmit}>
-            {submitting ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
-            {tipoTransacao === "CREDITO" ? "PONTUAR" : "RESGATAR"}
+            disabled={submittingDebito || !unidadeId || !embaixadorId || !pedidoId}
+            onClick={handleSubmitDebito}>
+            {submittingDebito ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
+            RESGATAR
           </Button>
+        </div>
+      </>)}
+    </SimpleForm>
+  );
+}
+
+// ─── CreditoRowForm ───────────────────────────────────────────────────────────
+interface CreditoRowProps {
+  row: CreditoRow;
+  idx: number;
+  total: number;
+  embaixadorOptions: { id: string; label: string; searchText?: string }[];
+  missoes: any[];
+  unidadeSelecionada: boolean;
+  loadingEmb?: boolean;
+  loadingMissoes?: boolean;
+  isDuplicateIndicacao?: boolean;
+  onUpdate: (patch: Partial<CreditoRow>) => void;
+  onRemove: () => void;
+}
+
+function CreditoRowForm({ row, idx, total, embaixadorOptions, missoes, unidadeSelecionada, loadingEmb, loadingMissoes, isDuplicateIndicacao, onUpdate, onRemove }: CreditoRowProps) {
+  const { data: indicacoes = [], isLoading: loadingIndicacoes } = useIndicacoes(row.embaixadorId || undefined);
+  const missaoSelecionada = missoes.find((m) => m.id === row.missaoId);
+  const isIndicacao = missaoSelecionada?.categoria === "INDICACAO";
+
+  const handleMissaoChange = (id: string) => {
+    const missao = missoes.find((m) => m.id === id);
+    onUpdate({ missaoId: id, indicacaoId: "", pontos: missao?.pontos || 0 });
+  };
+
+  const statusIcon = row.status === "success"
+    ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+    : row.status === "error"
+    ? <XCircle className="h-4 w-4 text-destructive shrink-0" />
+    : null;
+
+  return (
+    <div className={`rounded-lg border p-4 space-y-3 transition-colors ${
+      row.status === "success" ? "border-emerald-400/50 bg-emerald-50/30 dark:bg-emerald-950/10"
+      : row.status === "error" ? "border-destructive/40 bg-destructive/5"
+      : "border-border bg-card/30"
+    }`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {statusIcon}
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Crédito {idx + 1}</span>
+          {row.error && <span className="text-xs text-destructive">{row.error}</span>}
+        </div>
+        {total > 1 && row.status !== "success" && (
+          <button type="button" onClick={onRemove}
+            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
         )}
       </div>
 
-      {batchMode && tipoTransacao === "CREDITO" && (
-        <BatchQueue items={batch.queue} onRemove={batch.remove} onSubmit={submitBatch}
-          submitting={batch.submitting} progress={batch.progress}
-          singular="pontuação" plural="pontuações"
-          emptyHint={`Selecione embaixador + missão e clique em "Adicionar ao Lote"`}
-          renderItem={(item) => (
-            <>
-              <p className="font-medium text-card-foreground truncate">{item.embaixadorNome}</p>
-              <p className="text-xs text-muted-foreground truncate">{item.missaoNome} · {item.pontos} pts · {item.unidadeNome}</p>
-            </>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_6rem] gap-3">
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Embaixador</label>
+          <SearchSelect
+            value={row.embaixadorId}
+            onChange={(v) => onUpdate({ embaixadorId: v, indicacaoId: "" })}
+            options={embaixadorOptions}
+            placeholder={!unidadeSelecionada ? "Selecione a unidade primeiro" : "Selecione um embaixador"}
+            disabled={!unidadeSelecionada || row.status === "success"}
+            loading={loadingEmb}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Missão</label>
+          <SearchSelect
+            value={row.missaoId}
+            onChange={handleMissaoChange}
+            options={missoes.map((m) => ({ id: m.id, label: m.missao, searchText: m.categoria ?? "" }))}
+            placeholder="Selecione uma missão"
+            disabled={row.status === "success"}
+            loading={loadingMissoes}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Pontos</label>
+          <Input value={row.pontos || ""} readOnly className="bg-card text-card-foreground h-9 cursor-not-allowed" />
+        </div>
+      </div>
+
+      {isIndicacao && (
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Indicação</label>
+          <SearchSelect
+            value={row.indicacaoId}
+            onChange={(v) => onUpdate({ indicacaoId: v })}
+            options={indicacoes.map((i) => ({ id: i.id, label: `${i.nome} — ${i.telefone}`, searchText: `${i.telefone.replace(/\D/g, "")} ${(i as any).relacao}` }))}
+            placeholder={!row.embaixadorId ? "Selecione o embaixador primeiro" : "Buscar por nome ou telefone..."}
+            disabled={!row.embaixadorId || row.status === "success"}
+            loading={!!row.embaixadorId && loadingIndicacoes}
+          />
+          {isDuplicateIndicacao && (
+            <p className="text-xs text-destructive mt-1">Esta combinação de missão e indicação já existe em outro crédito</p>
           )}
-        />
+        </div>
       )}
-    </SimpleForm>
+
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">Observação</label>
+        <Textarea
+          value={row.observacao}
+          onChange={(e) => onUpdate({ observacao: e.target.value })}
+          className="bg-card text-card-foreground min-h-[36px]"
+          disabled={row.status === "success"}
+        />
+      </div>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { AccountLayout } from "@/components/account-layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PageLoader } from "@/components/page-loader";
 import { setUserData } from "@/lib/pb";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -18,7 +19,7 @@ export default function PerfilPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const { data: userData } = useQuery({
+  const { data: userData, isLoading } = useQuery({
     queryKey: ["usuario-perfil"],
     queryFn: async () => {
       const res = await fetch("/api/perfil");
@@ -74,7 +75,7 @@ export default function PerfilPage() {
 
   return (
     <AccountLayout>
-      <div className="max-w-sm space-y-10">
+      {isLoading ? <PageLoader /> : <div className="max-w-sm space-y-10">
         <div className="space-y-6">
           <div>
             <label className="block text-xs text-muted-foreground mb-2">Nome</label>
@@ -113,7 +114,7 @@ export default function PerfilPage() {
         <Button onClick={handleSave} disabled={saving} className="rounded-full px-8 text-sm">
           {saving ? "Salvando..." : "Salvar alterações"}
         </Button>
-      </div>
+      </div>}
     </AccountLayout>
   );
 }

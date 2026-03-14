@@ -1,32 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pbFetch, pbAdminFetch, getPbToken, getUserIdFromToken, apiError } from "@/lib/pb-server";
+import { pbFetch, pbAdminFetch, getPbToken, getUserIdFromToken, apiError, getAdminProfile } from "@/lib/pb-server";
 import { withWebhook } from "@/lib/with-webhook";
 
 export const POST = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
   const requesterId = getUserIdFromToken(token);
+  if (!requesterId) return apiError("Token inválido", 401);
 
   const body = await request.json();
   const {
-    unidadeId, nome, email, senha, prontuario, tipo, sexo,
+    unidadeIds, nome, email, senha, prontuario, tipo, sexo,
     telefone, nascimento, cpf, observacao,
     isAdministrador, isColetor, isEmbaixador,
     nivelInicianteId,
   } = body;
 
+  if (!Array.isArray(unidadeIds) || !unidadeIds.length) return apiError("Selecione ao menos uma unidade", 400);
+
+  // Admin só pode cadastrar em suas próprias unidades
+  const { unidades: adminUnidades, isDono } = await getAdminProfile(requesterId);
+  if (!isDono) {
+    const invalid = unidadeIds.filter((id: string) => !adminUnidades.includes(id));
+    if (invalid.length) return apiError("Sem permissão para uma ou mais unidades selecionadas", 403);
+  }
+
   // Apenas donos podem definir administrador=true
-  if (isAdministrador && requesterId) {
-    const requesterRes = await pbAdminFetch(`/api/collections/usuario/records/${requesterId}`);
+  if (isAdministrador) {
+    const requesterRes = await pbAdminFetch(`/api/collections/usuario/records/${requesterId}?fields=dono`);
     const requester = requesterRes.ok ? await requesterRes.json() : null;
     if (!requester?.dono) return apiError("Sem permissão para cadastrar administradores", 403);
   }
 
   const usuarioBody: any = {
-    unidade: unidadeId,
-    nome,
-    email,
-    telefone,
+    unidade: unidadeIds,
+    nome, email, telefone,
     administrador: !!isAdministrador,
     coletor: !!isColetor,
     embaixador: !!isEmbaixador,

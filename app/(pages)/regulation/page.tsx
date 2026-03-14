@@ -5,16 +5,15 @@ import { SiteHeader } from "@/components/header";
 import { SiteFooter } from "@/components/footer";
 import { FloatingButtons } from "@/components/floating-buttons";
 import { PageTransition } from "@/components/page-transition";
-import { fetchWithAuth, PB_BASE_URL } from "@/lib/pb";
 
 export default function RegulationPage() {
   const [html, setHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchWithAuth(`${PB_BASE_URL}/api/collections/tema/records?perPage=1`)
-      .then((r) => r.json())
-      .then((data) => setHtml(data.items?.[0]?.regulamento ?? ""))
+    fetch("/api/tema")
+      .then((r) => r.ok ? r.json() : null)
+      .then((record) => setHtml(record?.regulamento ?? ""))
       .catch(() => setHtml(""))
       .finally(() => setLoading(false));
   }, []);

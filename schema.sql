@@ -314,6 +314,16 @@ CREATE UNIQUE INDEX `idx_SqftDwQymZ` ON `produto` (`nome`);
 
 CREATE UNIQUE INDEX `idx_0KWG4dG8Xg` ON `catalogo` (`produto`, `unidade`);
 
+CREATE UNIQUE INDEX `idx_o1qBsDPEX0` ON `indicacao` (`telefone`);
+
+CREATE UNIQUE INDEX `idx_tokenKey_ibnv1yctmn` ON `usuario` (`tokenKey`);
+
+CREATE UNIQUE INDEX `idx_email_ibnv1yctmn` ON `usuario` (`email`)
+WHERE
+  `email` != '';
+
+CREATE UNIQUE INDEX `idx_3FHfRPq2nJ` ON `usuario` (`telefone`);
+
 CREATE VIEW
   `estoque` AS
 SELECT
@@ -359,18 +369,6 @@ FROM
       u.nome
   )
   /* estoque(id,produto_id,produto_nome,produto_pontos,produto_foto,produto_categoria,unidade_id,unidade_nome,ativo,entrada,saida,quantidade) */;
-
-CREATE UNIQUE INDEX `idx_tokenKey_ibnv1yctmn` ON `usuario` (`tokenKey`);
-
-CREATE UNIQUE INDEX `idx_email_ibnv1yctmn` ON `usuario` (`email`)
-WHERE
-  `email` != '';
-
-CREATE UNIQUE INDEX `idx_3FHfRPq2nJ` ON `usuario` (`telefone`);
-
-CREATE UNIQUE INDEX `idx_M5xZsfskEV` ON `usuario` (`cpf`);
-
-CREATE UNIQUE INDEX `idx_o1qBsDPEX0` ON `indicacao` (`telefone`);
 
 CREATE VIEW
   `saldo` AS
@@ -427,6 +425,16 @@ FROM
   )
   /* saldo(id,usuario,unidade,credito,debito,pendente,saldo) */;
 
+CREATE UNIQUE INDEX `idx_yGYwPxfEJE` ON `pedido` (`item`);
+
+CREATE UNIQUE INDEX `idx_obnpz2pgMa` ON `transacao` (`indicacao`, `missao`)
+WHERE
+  `indicacao` != '';
+
+CREATE UNIQUE INDEX `idx_RrcYYfnuH5` ON `transacao` (`pedido`)
+WHERE
+  `pedido` != '';
+
 CREATE VIEW
   `historico` AS
 SELECT
@@ -457,17 +465,38 @@ FROM
       CAST(t.unidade AS TEXT) AS unidade,
       CAST((t.missao || '') AS TEXT) AS missao_id,
       CAST(COALESCE(m.missao, '') AS TEXT) AS missao_nome,
+      CAST(COALESCE(m.categoria, '') AS TEXT) AS missao_categoria,
       CAST(COALESCE(m.pontos, 0) AS REAL) AS missao_pontos,
       CAST((t.pedido || '') AS TEXT) AS pedido_id,
       CAST(COALESCE(p.status, '') AS TEXT) AS pedido_status,
-      CAST(COALESCE(p.pontos, 0) AS REAL) AS pedido_pontos
+      CAST(COALESCE(p.pontos, 0) AS REAL) AS pedido_pontos,
+      CAST((t.indicacao || '') AS TEXT) AS indicacao_id,
+      CAST(
+        IIF (
+          m.categoria = 'INDICACAO'
+          AND t.indicacao != '',
+          COALESCE(i.nome, ''),
+          ''
+        ) AS TEXT
+      ) AS indicacao_nome,
+      CAST(
+        IIF (
+          m.categoria = 'INDICACAO'
+          AND t.indicacao != '',
+          COALESCE(i.telefone, ''),
+          ''
+        ) AS TEXT
+      ) AS indicacao_telefone
     FROM
       transacao t
       LEFT JOIN missao m ON m.id = t.missao
       AND t.missao != ''
       LEFT JOIN pedido p ON p.id = t.pedido
       AND t.pedido != ''
+      LEFT JOIN indicacao i ON i.id = t.indicacao
+      AND t.indicacao != ''
+      AND m.categoria = 'INDICACAO'
     ORDER BY
       t.created DESC
   )
-  /* historico(id,created,tipo,valor,observacao,valido_ate,usuario,usuario_responsavel,unidade,missao_id,missao_nome,missao_pontos,pedido_id,pedido_status,pedido_pontos) */;
+  /* historico(id,created,tipo,valor,observacao,valido_ate,usuario,usuario_responsavel,unidade,missao_id,missao_nome,missao_categoria,missao_pontos,pedido_id,pedido_status,pedido_pontos,indicacao_id,indicacao_nome,indicacao_telefone) */;

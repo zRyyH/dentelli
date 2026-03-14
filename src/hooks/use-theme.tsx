@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { PB_BASE_URL, fetchWithAuth } from "@/lib/pb";
+import { PB_BASE_URL } from "@/lib/pb";
 import type { ThemeColors, ThemeImages, TemaRecord } from "@/lib/types";
 
 interface ThemeCtx {
@@ -78,10 +78,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetchWithAuth(`${PB_BASE_URL}/api/collections/tema/records?perPage=1`);
+      const res = await fetch(`/api/tema`);
       if (!res.ok) return;
-      const data = await res.json();
-      const record: TemaRecord = data.items?.[0];
+      const record: TemaRecord = await res.json();
       if (!record) return;
 
       const newColors: ThemeColors = {

@@ -33,7 +33,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SimpleForm } from "@/components/simple-form";
 import { SearchSelect } from "@/components/search-select";
-import { useUnidades, useEmbaixadores, useColetores, useTipoOptions, useSexoOptions } from "@/hooks/use-admin-data";
+import { useEmbaixadores, useColetores, useTipoOptions, useSexoOptions } from "@/hooks/use-admin-data";
+import { useUnidade } from "@/hooks/use-unidade";
 import { useUser } from "@/hooks/use-user";
 import { formatCpf, formatDate, formatTelefone, parseDateToISO, validateCpf, validateEmail, validateNascimento, validateTelefone } from "@/lib/formatters";
 import { toast } from "sonner";
@@ -60,14 +61,16 @@ const lbl = "block text-xs font-semibold uppercase tracking-wide text-muted-fore
 const inp = "bg-card text-card-foreground h-9";
 
 export default function UsuarioPage() {
-  const { data: unidades = [], isLoading: loadingUnidades } = useUnidades();
+  const { unidades } = useUnidade();
+  const loadingUnidades = unidades.length === 0;
   const { data: tipoOptions = [], isLoading: loadingTipo } = useTipoOptions();
   const { data: sexoOptions = [], isLoading: loadingSexo } = useSexoOptions();
   const { isDono: userIsDono, isLoading: loadingUser } = useUser();
   const [nivelLoaded, setNivelLoaded] = useState(false);
 
   const [modo, setModo] = useState<Modo>("cadastrar");
-  const [unidadeId, setUnidadeId] = useState("");
+  const [unidadeId, setUnidadeId] = useState(""); // usado só no modo editar para filtrar usuários
+  const [unidadeIds, setUnidadeIds] = useState<string[]>([]); // unidades vinculadas ao usuário
   const [usuarioId, setUsuarioId] = useState("");
   const [isAdministrador, setIsAdministrador] = useState(false);
   const [isColetor, setIsColetor] = useState(false);
@@ -100,7 +103,7 @@ export default function UsuarioPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const canSubmit = (() => {
-    if (!unidadeId || !nome || !email || !telefone || !hasAtLeastOneRole) return false;
+    if (!unidadeIds.length || !nome || !email || !telefone || !hasAtLeastOneRole) return false;
     if (!validateEmail(email) || !validateTelefone(telefone)) return false;
     if (modo === "cadastrar" && !senha) return false;
     if (modo === "editar" && !usuarioId) return false;
@@ -126,7 +129,7 @@ export default function UsuarioPage() {
   const resetForm = () => {
     setNome(""); setProntuario(""); setTipo(""); setSexo("");
     setTelefone(""); setNascimento(""); setCpf(""); setObservacao("");
-    setEmail(""); setSenha(""); setUsuarioId("");
+    setEmail(""); setSenha(""); setUsuarioId(""); setUnidadeIds([]);
     setIsAdministrador(false); setIsColetor(false); setIsEmbaixador(false);
   };
 
@@ -144,6 +147,8 @@ export default function UsuarioPage() {
         setTelefone(data.telefone ? formatTelefone(data.telefone) : ""); setCpf(data.cpf ? formatCpf(data.cpf) : "");
         setObservacao(data.observacao || ""); setEmail(data.email || ""); setSenha("");
         setIsAdministrador(!!data.administrador); setIsColetor(!!data.coletor); setIsEmbaixador(!!data.embaixador);
+        const uIds = Array.isArray(data.unidade) ? data.unidade : data.unidade ? [data.unidade] : [];
+        setUnidadeIds(uIds);
         if (data.nascimento) {
           const d = new Date(data.nascimento);
           setNascimento(`${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`);
@@ -153,7 +158,7 @@ export default function UsuarioPage() {
   }, [usuarioId, modo]);
 
   const handleSubmit = async () => {
-    if (!unidadeId) { toast.error("Selecione uma unidade"); return; }
+    if (!unidadeIds.length) { toast.error("Selecione ao menos uma unidade"); return; }
     if (!nome) { toast.error("Informe o nome"); return; }
     if (!email) { toast.error("Informe o email"); return; }
     if (!telefone) { toast.error("Informe o telefone"); return; }
@@ -170,11 +175,10 @@ export default function UsuarioPage() {
 
     setSubmitting(true);
     try {
-      const unidade = unidades.find((u) => u.id === unidadeId) ?? { id: unidadeId };
       const telefoneDigits = telefone.replace(/\D/g, "");
       const baseFields = {
-        unidadeId, nome, email, telefone: telefoneDigits,
-        isAdministrador, isColetor, isEmbaixador, unidade,
+        unidadeIds, nome, email, telefone: telefoneDigits,
+        isAdministrador, isColetor, isEmbaixador,
       };
       const extraFields = requireAllFields ? {
         prontuario, tipo, sexo, cpf: cpf.replace(/\D/g, ""), observacao,
@@ -230,17 +234,18 @@ export default function UsuarioPage() {
 
       <hr className="border-border" />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className={lbl}>Unidade <span className="text-destructive">*</span></label>
-          <SearchSelect
-            value={unidadeId}
-            onChange={setUnidadeId}
-            options={unidades.map((u) => ({ id: u.id, label: u.nome }))}
-            placeholder="Selecione uma unidade"
-          />
-        </div>
-        {modo === "editar" && (
+      {modo === "editar" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className={lbl}>Filtrar usuários por unidade</label>
+            <SearchSelect
+              value={unidadeId}
+              onChange={setUnidadeId}
+              options={unidades.map((u) => ({ id: u.id, label: u.nome }))}
+              placeholder="Selecione uma unidade"
+              loading={loadingUnidades}
+            />
+          </div>
           <div>
             <label className={lbl}>Usuário</label>
             <SearchSelect
@@ -255,27 +260,43 @@ export default function UsuarioPage() {
               disabled={!unidadeId}
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <hr className="border-border" />
 
       <div className="space-y-4">
-        <div>
-          <label className={lbl}>Funções <span className="text-destructive">*</span></label>
-          <div className="flex flex-wrap gap-6 mt-1">
-            {[
-              { id: "sw-admin", checked: isAdministrador, onChange: setIsAdministrador, label: "Administrador", donoOnly: true },
-              { id: "sw-coletor", checked: isColetor, onChange: setIsColetor, label: "Coletor", donoOnly: false },
-              { id: "sw-embaixador", checked: isEmbaixador, onChange: setIsEmbaixador, label: "Embaixador", donoOnly: false },
-            ].filter((f) => !f.donoOnly || userIsDono).map(({ id, checked, onChange, label: lbTxt }) => (
-              <div key={id} className="flex items-center gap-2">
-                <Switch id={id} checked={checked} onCheckedChange={onChange} />
-                <Label htmlFor={id} className="text-sm cursor-pointer">{lbTxt}</Label>
-              </div>
-            ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+          <div>
+            <label className={lbl}>Funções <span className="text-destructive">*</span></label>
+            <div className="flex flex-wrap gap-6 mt-1">
+              {[
+                { id: "sw-admin", checked: isAdministrador, onChange: setIsAdministrador, label: "Administrador", donoOnly: true },
+                { id: "sw-coletor", checked: isColetor, onChange: setIsColetor, label: "Coletor", donoOnly: false },
+                { id: "sw-embaixador", checked: isEmbaixador, onChange: setIsEmbaixador, label: "Embaixador", donoOnly: false },
+              ].filter((f) => !f.donoOnly || userIsDono).map(({ id, checked, onChange, label: lbTxt }) => (
+                <div key={id} className="flex items-center gap-2">
+                  <Switch id={id} checked={checked} onCheckedChange={onChange} />
+                  <Label htmlFor={id} className="text-sm cursor-pointer">{lbTxt}</Label>
+                </div>
+              ))}
+            </div>
+            <p className={`text-xs text-destructive mt-1.5 ${hasAtLeastOneRole ? "invisible" : ""}`}>Pelo menos uma função deve estar ativa.</p>
           </div>
-          <p className={`text-xs text-destructive mt-1.5 ${hasAtLeastOneRole ? "invisible" : ""}`}>Pelo menos uma função deve estar ativa.</p>
+          <div>
+            <label className={lbl}>Unidades <span className="text-destructive">*</span></label>
+            <SearchSelect
+              multi
+              values={unidadeIds}
+              onChangeMulti={setUnidadeIds}
+              options={unidades.map((u) => ({ id: u.id, label: u.nome }))}
+              placeholder="Selecione as unidades"
+              loading={loadingUnidades}
+            />
+            {!unidadeIds.length && !loadingUnidades && (
+              <p className="text-xs text-destructive mt-1.5">Selecione ao menos uma unidade.</p>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -311,6 +332,7 @@ export default function UsuarioPage() {
                   onChange={setTipo}
                   options={tipoOptions.map((opt) => ({ id: opt, label: opt }))}
                   placeholder="Selecione"
+                  loading={loadingTipo}
                 />
               </div>
               <div>
@@ -320,6 +342,7 @@ export default function UsuarioPage() {
                   onChange={setSexo}
                   options={sexoOptions.map((opt) => ({ id: opt, label: opt }))}
                   placeholder="Selecione"
+                  loading={loadingSexo}
                 />
               </div>
               <div>

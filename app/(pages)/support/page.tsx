@@ -6,7 +6,6 @@ import { SiteHeader } from "@/components/header";
 import { SiteFooter } from "@/components/footer";
 import { FloatingButtons } from "@/components/floating-buttons";
 import { PageTransition } from "@/components/page-transition";
-import { fetchWithAuth, PB_BASE_URL } from "@/lib/pb";
 
 type SupportSection = "atendimento" | "sobre" | "entregas" | "perguntas";
 
@@ -69,10 +68,9 @@ export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchWithAuth(`${PB_BASE_URL}/api/collections/tema/records?perPage=1`)
-      .then((r) => r.json())
-      .then((data) => {
-        const record = data.items?.[0];
+    fetch("/api/tema")
+      .then((r) => r.ok ? r.json() : null)
+      .then((record) => {
         if (!record) return;
         let informacao = null;
         try { informacao = typeof record.informacao === "string" ? JSON.parse(record.informacao) : record.informacao ?? null; } catch {}

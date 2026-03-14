@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Clock, Phone, Mail, Instagram, Youtube, Facebook, Music } from "lucide-react";
-import { fetchWithAuth, PB_BASE_URL } from "@/lib/pb";
 
 interface TemaFooter {
   whatsapp: string;
@@ -25,10 +24,9 @@ export function SiteFooter() {
   const [tema, setTema] = useState<TemaFooter | null>(null);
 
   useEffect(() => {
-    fetchWithAuth(`${PB_BASE_URL}/api/collections/tema/records?perPage=1`)
-      .then((r) => r.json())
-      .then((data) => {
-        const record = data.items?.[0];
+    fetch("/api/tema")
+      .then((r) => r.ok ? r.json() : null)
+      .then((record) => {
         if (!record) return;
         setTema({
           whatsapp:  record.whatsapp  ?? "",

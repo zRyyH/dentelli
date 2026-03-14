@@ -36,10 +36,11 @@ export const useMissoes = () =>
     queryFn: () => get("/api/admin/missoes"),
   });
 
-export const useIndicacoes = () =>
+export const useIndicacoes = (embaixadorId?: string) =>
   useQuery<Indicacao[]>({
-    queryKey: ["indicacoes"],
-    queryFn: () => get("/api/admin/indicacoes"),
+    queryKey: ["indicacoes", embaixadorId ?? "all"],
+    queryFn: () => get(embaixadorId ? `/api/admin/indicacoes?embaixadorId=${embaixadorId}` : "/api/admin/indicacoes"),
+    enabled: embaixadorId ? !!embaixadorId : true,
   });
 
 export const useRelacoes = () =>

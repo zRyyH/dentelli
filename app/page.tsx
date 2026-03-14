@@ -46,7 +46,7 @@ export default function LoginPage() {
       const data = await res.json();
       setAuthCookie(data.token);
       setUserData(data.record);
-      router.replace("/homepage");
+      window.location.replace("/homepage");
     } catch (err: any) {
       toast.error(err.message || "Email ou senha incorretos");
     } finally {

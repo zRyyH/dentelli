@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pbFetch, getPbToken, apiError } from "@/lib/pb-server";
+import { pbFetch, getPbToken, getUserIdFromToken, apiError, requireAdminUnidade } from "@/lib/pb-server";
 import { withWebhook } from "@/lib/with-webhook";
 
 export const POST = withWebhook(async (request: NextRequest) => {
   const token = await getPbToken();
   if (!token) return apiError("Não autenticado", 401);
+  const adminId = getUserIdFromToken(token);
+  if (!adminId) return apiError("Token inválido", 401);
 
   const body = await request.json();
   const { tipo, unidadeId, produtoId, quantidade, nomeLote, custoUnitario, observacao } = body;
+
+  if (!unidadeId || !produtoId || !tipo) return apiError("Campos obrigatórios: tipo, unidadeId, produtoId", 400);
+
+  const permErr = await requireAdminUnidade(adminId, unidadeId);
+  if (permErr) return permErr;
 
   if (tipo === "SAIDA") {
     const filter = encodeURIComponent(`unidade_id='${unidadeId}' && produto_id='${produtoId}'`);
@@ -43,6 +50,22 @@ export const POST = withWebhook(async (request: NextRequest) => {
   });
   if (!res.ok) return apiError("Erro ao cadastrar movimentação");
   const fluxoRecord = await res.json();
+
+  // Na primeira ENTRADA: adiciona ao catálogo da unidade se ainda não existir
+  if (tipo === "ENTRADA") {
+    const filter = encodeURIComponent(`produto='${produtoId}' && unidade='${unidadeId}'`);
+    const catalogoCheck = await pbFetch(`/api/collections/catalogo/records?filter=${filter}&perPage=1`);
+    if (catalogoCheck.ok) {
+      const exists = (await catalogoCheck.json()).items?.length > 0;
+      if (!exists) {
+        await pbFetch("/api/collections/catalogo/records", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ produto: produtoId, unidade: unidadeId, ativo: true }),
+        });
+      }
+    }
+  }
 
   return NextResponse.json({ ok: true, fluxo: fluxoRecord });
 });

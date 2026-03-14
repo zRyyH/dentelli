@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { AccountLayout } from "@/components/account-layout";
 import { useProducts, getProductImageUrl } from "@/hooks/use-products";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PageLoader } from "@/components/page-loader";
 import { toast } from "sonner";
 
 interface PedidoItem {
@@ -38,10 +39,10 @@ export default function PedidosPage() {
   const queryClient = useQueryClient();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const { data: products = [] } = useProducts();
+  const { data: products = [], isLoading: productsLoading } = useProducts();
   const { selectedId: unidadeId, selectedNome, unidades } = useUnidade();
 
-  const { data: pedidos = [] } = useQuery<Pedido[]>({
+  const { data: pedidos = [], isLoading: pedidosLoading } = useQuery<Pedido[]>({
     queryKey: ["pedidos", unidadeId],
     queryFn: () => {
       const url = unidadeId ? `/api/pedidos?unidadeId=${unidadeId}` : "/api/pedidos";
@@ -66,6 +67,7 @@ export default function PedidosPage() {
     }
   };
 
+  const isLoading = pedidosLoading || productsLoading;
   const formatDate = (d: string) => new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   const filtered = pedidos.filter((p) => !search || p.id.toLowerCase().includes(search.toLowerCase()));
 
@@ -85,7 +87,9 @@ export default function PedidosPage() {
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <PageLoader />
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <ShoppingBag className="h-8 w-8 mb-4 text-muted-foreground/20" />
           <p className="text-sm text-muted-foreground mb-5">Nenhum pedido encontrado</p>
