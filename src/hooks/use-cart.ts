@@ -19,8 +19,11 @@ export function useCart() {
   const { selectedId: unidadeId } = useUnidade();
 
   const { data, isLoading } = useQuery<{ pedido: Pedido | null; items: CartItem[] }>({
-    queryKey: ["cart"],
-    queryFn: () => fetch("/api/cart").then((r) => r.ok ? r.json() : { pedido: null, items: [] }),
+    queryKey: ["cart", unidadeId],
+    queryFn: () => {
+      const url = unidadeId ? `/api/cart?unidadeId=${unidadeId}` : "/api/cart";
+      return fetch(url).then((r) => r.ok ? r.json() : { pedido: null, items: [] });
+    },
   });
 
   const pedido = data?.pedido ?? null;
@@ -28,7 +31,7 @@ export function useCart() {
   const totalPontos = items.reduce((sum, i) => sum + i.pontos * i.quantidade, 0);
   const itemCount = items.reduce((s, i) => s + i.quantidade, 0);
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ["cart"] });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["cart", unidadeId] });
 
   const addToCart = useMutation({
     mutationFn: ({ produtoId, pontos, quantidade }: { produtoId: string; pontos: number; quantidade: number }) =>

@@ -17,7 +17,7 @@ export const POST = withWebhook(async (request: NextRequest) => {
   if (pedido.usuario !== userId) return apiError("Acesso negado", 403);
   if (pedido.status !== "CARRINHO") return apiError("Pedido inválido", 400);
 
-  // Valida saldo (filtrado por unidade do pedido)
+  // Valida saldo do usuário pela unidade do pedido
   const unidadeFilter = pedido.unidade ? ` && unidade='${pedido.unidade}'` : "";
   const saldoFilter = encodeURIComponent(`usuario='${userId}'${unidadeFilter}`);
   const saldoRes = await pbFetch(`/api/collections/saldo/records?filter=${saldoFilter}&perPage=1`);

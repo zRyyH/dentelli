@@ -9,14 +9,16 @@ async function fetchCartItems(itemIds: string[]) {
   return (await res.json()).items;
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const token = await getPbToken();
     if (!token) return apiError("Não autenticado", 401);
     const userId = getUserIdFromToken(token);
     if (!userId) return apiError("Token inválido", 401);
 
-    const filter = encodeURIComponent(`usuario='${userId}' && status='CARRINHO'`);
+    const unidadeId = request.nextUrl.searchParams.get("unidadeId");
+    const unidadeFilter = unidadeId ? ` && unidade='${unidadeId}'` : "";
+    const filter = encodeURIComponent(`usuario='${userId}' && status='CARRINHO'${unidadeFilter}`);
     const pedidoRes = await pbFetch(`/api/collections/pedido/records?filter=${filter}&perPage=1`);
     if (!pedidoRes.ok) return NextResponse.json({ pedido: null, items: [] });
 
