@@ -135,6 +135,6 @@ export async function getSaldoReal(usuarioId: string, unidadeId: string): Promis
   const data = await res.json();
   const record = data.items?.[0];
   if (!record) return 0;
-  return record.saldo ?? 0;
+  return (record.saldo ?? 0) + (record.pendente ?? 0);
 }
 

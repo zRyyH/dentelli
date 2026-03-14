@@ -75,7 +75,7 @@ export default function CentralPage() {
   const missoes = useMemo(() => todasMissoes.filter((m) => !m.automatico), [todasMissoes]);
   const embaixadorOptions = useMemo(() => embaixadores.map((e) => ({ id: e.id, label: e.nome, searchText: [(e as any).cpf, (e as any).telefone].filter(Boolean).join(" ") })), [embaixadores]);
 
-  const saldoPontos = saldoData?.saldo ?? 0;
+  const saldoPontos = (saldoData?.saldo ?? 0) + (saldoData?.pendente ?? 0);
   const custoDebito = parseFloat(pontosItem) || 0;
   const saldoApos = saldoPontos - custoDebito;
 
