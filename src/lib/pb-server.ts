@@ -30,6 +30,16 @@ let _adminToken: string | null = null;
 let _adminTokenExp = 0;
 let _adminTokenPromise: Promise<string> | null = null;
 
+function getTokenExpMs(token: string): number {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    // exp is in seconds; refresh 5 min before expiry
+    return payload.exp ? payload.exp * 1000 - 5 * 60 * 1000 : Date.now() + 23 * 60 * 60 * 1000;
+  } catch {
+    return Date.now() + 23 * 60 * 60 * 1000;
+  }
+}
+
 export async function getAdminToken(): Promise<string> {
   if (_adminToken && Date.now() < _adminTokenExp) return _adminToken;
 
@@ -49,14 +59,16 @@ export async function getAdminToken(): Promise<string> {
         if (res.ok) {
           const data = await res.json();
           _adminToken = data.token as string;
-          _adminTokenExp = Date.now() + 23 * 60 * 60 * 1000;
+          _adminTokenExp = getTokenExpMs(_adminToken);
           return _adminToken;
         }
 
         const errBody = await res.json().catch(() => ({}));
         console.error(`[pb-server] getAdminToken tentativa ${attempt}/3 falhou:`, res.status, errBody);
 
-        if (attempt < 3) await new Promise((r) => setTimeout(r, attempt * 500));
+        // 429 → wait longer before retry
+        const delay = res.status === 429 ? attempt * 3000 : attempt * 500;
+        if (attempt < 3) await new Promise((r) => setTimeout(r, delay));
       }
       throw new Error("Falha ao autenticar superusuário após 3 tentativas");
     })().finally(() => { _adminTokenPromise = null; });

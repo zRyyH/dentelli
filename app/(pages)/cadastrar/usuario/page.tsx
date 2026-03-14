@@ -82,7 +82,7 @@ export default function UsuarioPage() {
   const { data: coletores = [] } = useColetores(unidadeId || undefined);
 
   const allUsuarios = (() => {
-    const map = new Map<string, { id: string; nome: string }>();
+    const map = new Map<string, { id: string; nome: string; email?: string; cpf?: string; telefone?: string; prontuario?: string }>();
     embaixadores.forEach((u) => map.set(u.id, u));
     coletores.forEach((u) => map.set(u.id, u));
     return Array.from(map.values());
